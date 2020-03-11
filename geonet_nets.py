@@ -1,6 +1,7 @@
 # The network design is based on Tinghui Zhou & Clement Godard's works:
 # https://github.com/tinghuiz/SfMLearner/blob/master/nets.py
 # https://github.com/mrharicot/monodepth/blob/master/monodepth_model.py
+
 from __future__ import division
 import tensorflow as tf
 import tensorflow.contrib.slim as slim

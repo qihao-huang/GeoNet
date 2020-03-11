@@ -5,7 +5,7 @@ PYTHON="/userhome/34/h3567721/anaconda3/envs/geonet-v/bin/python"
 
 #  format the testing data
 $PYTHON kitti_eval/generate_multiview_extension.py \
-    --dataset_dir=/path/to/data_scene_flow_multiview/ \
+    --dataset_dir="/userhome/34/h3567721/dataset/kitti/flow/data_scene_flow_multiview" \
     --calib_dir=/path/to/data_scene_flow_calib/ \
     --dump_root=/path/to/formatted/testdata/ \
     --cam_id=02 \

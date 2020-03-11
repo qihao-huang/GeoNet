@@ -13,7 +13,7 @@ $PYTHON geonet_main.py \
 
 # generate the groundtruth pose snippets
 $PYTHON kitti_eval/generate_pose_snippets.py \
-    --dataset_dir=/path/to/kitti/odom/dataset/ \
+    --dataset_dir="/userhome/34/h3567721/dataset/kitti/odometry" \
     --output_dir=/path/to/save/gtruth/pose/snippets/ \
     --seq_id=09 \
     --seq_length=5

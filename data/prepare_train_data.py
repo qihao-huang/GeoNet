@@ -1,5 +1,6 @@
 # Mostly based on the code written by Tinghui Zhou: 
 # https://github.com/tinghuiz/SfMLearner/blob/master/data/prepare_train_data.py
+
 from __future__ import division
 import argparse
 import scipy.misc
@@ -30,15 +31,24 @@ def concat_image_seq(seq):
 def dump_example(n, args):
     if n % 2000 == 0:
         print('Progress %d/%d....' % (n, data_loader.num_train))
+    
     example = data_loader.get_train_example_with_idx(n)
     if example == False:
         return
+    
     image_seq = concat_image_seq(example['image_seq'])
     intrinsics = example['intrinsics']
+
+    # | fx |    |    | cx |
+    # |    | fy | cy |    |
+    # |    |    |    |    |
+    # |    |    |    |    |
+    
     fx = intrinsics[0, 0]
     fy = intrinsics[1, 1]
     cx = intrinsics[0, 2]
     cy = intrinsics[1, 2]
+    
     dump_dir = os.path.join(args.dump_root, example['folder_name'])
 
     try: 
@@ -46,8 +56,12 @@ def dump_example(n, args):
     except OSError:
         if not os.path.isdir(dump_dir):
             raise
+
+    # 0000000276.jpg
     dump_img_file = dump_dir + '/%s.jpg' % example['file_name']
     scipy.misc.imsave(dump_img_file, image_seq.astype(np.uint8))
+
+    # 0000000276_cam.txt
     dump_cam_file = dump_dir + '/%s_cam.txt' % example['file_name']
     with open(dump_cam_file, 'w') as f:
         f.write('%f,0.,%f,0.,%f,%f,0.,0.,1.' % (fx, cx, fy, cy))
@@ -99,8 +113,10 @@ def main():
             for s in subfolders:
                 if not os.path.isdir(args.dump_root + '/%s' % s):
                     continue
+                
                 imfiles = glob(os.path.join(args.dump_root, s, '*.jpg'))
                 frame_ids = [os.path.basename(fi).split('.')[0] for fi in imfiles]
+
                 for frame in frame_ids:
                     if np.random.random() < 0.1:
                         vf.write('%s %s\n' % (s, frame))

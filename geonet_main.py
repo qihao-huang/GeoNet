@@ -1,11 +1,15 @@
 from __future__ import division
 import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import time
 import random
 import pprint
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+
+from tensorflow.python.client import device_lib 
 
 from geonet_model import *
 from geonet_test_depth import *
@@ -68,14 +72,17 @@ def train():
 
     with tf.Graph().as_default():
         # Data Loader
+        print("# Data Loader")
         loader = DataLoader(opt)
         tgt_image, src_image_stack, intrinsics = loader.load_train_batch()
 
         # Build Model
+        print("# Build Model")
         model = GeoNetModel(opt, tgt_image, src_image_stack, intrinsics)
         loss = model.total_loss
 
         # Train Op
+        print('# Train Op')
         if opt.mode == 'train_flow' and opt.flownet_type == "residual":
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
             train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
@@ -88,11 +95,13 @@ def train():
             init_assign_op, init_feed_dict = slim.assign_from_checkpoint(
                                             opt.init_ckpt_file, vars_to_restore)
 
+        print("# Optimizer")
         optim = tf.train.AdamOptimizer(opt.learning_rate, 0.9)
         train_op = slim.learning.create_train_op(loss, optim,
                                                  variables_to_train=train_vars)
 
         # Global Step
+        print("# Global Step")
         global_step = tf.Variable(0,
                                 name='global_step',
                                 trainable=False)
@@ -100,18 +109,22 @@ def train():
                                      global_step+1)
 
         # Parameter Count
+        print("# Parameter Count")
         parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) \
                                         for v in train_vars])
 
         # Saver
+        print("# Saver")
         saver = tf.train.Saver([var for var in tf.model_variables()] + \
                                 [global_step],
                                 max_to_keep=opt.max_to_keep)
 
         # Session
+        print("# Session")
         sv = tf.train.Supervisor(logdir=opt.checkpoint_dir,
                                  save_summaries_secs=0,
                                  saver=None)
+
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
 
@@ -125,25 +138,33 @@ def train():
                 sess.run(init_assign_op, init_feed_dict)
             start_time = time.time()
 
+            print("entering into steps")
             for step in range(1, opt.max_steps):
+                print("step: ", step)
+
                 fetches = {
                     "train": train_op,
                     "global_step": global_step,
                     "incr_global_step": incr_global_step
                 }
+
                 if step % 100 == 0:
                     fetches["loss"] = loss
+                
                 results = sess.run(fetches)
+                
                 if step % 100 == 0:
                     time_per_iter = (time.time() - start_time) / 100
                     start_time = time.time()
                     print('Iteration: [%7d] | Time: %4.4fs/iter | Loss: %.3f' \
                           % (step, time_per_iter, results["loss"]))
+                
                 if step % opt.save_ckpt_freq == 0:
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
 
 def main(_):
 
+    # TODO: ?
     opt.num_source = opt.seq_length - 1
     opt.num_scales = 4
 
