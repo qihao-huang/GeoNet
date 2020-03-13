@@ -54,6 +54,12 @@ flags.DEFINE_string("output_dir",                 None,    "Test result output d
 flags.DEFINE_string("depth_test_split",        "eigen",    "KITTI depth split, eigen or stereo")
 flags.DEFINE_integer("pose_test_seq",                9,    "KITTI Odometry Sequence ID to test")
 
+#####
+flags.DEFINE_integer("num_source",     None,    "add configuration")
+flags.DEFINE_integer("num_scales",     None,    "add configuration")
+flags.DEFINE_boolean("add_flownet",     None,    "add configuration")
+flags.DEFINE_boolean("add_dispnet",     None,    "add configuration")
+flags.DEFINE_boolean("add_posenet",     None,    "add configuration")
 
 opt = flags.FLAGS
 
@@ -163,8 +169,6 @@ def train():
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
 
 def main(_):
-
-    # TODO: ?
     opt.num_source = opt.seq_length - 1
     opt.num_scales = 4
 

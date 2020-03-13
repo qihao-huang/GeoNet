@@ -66,6 +66,7 @@ def main():
     # generate test examples
     if not os.path.exists(args.dump_root):
         os.makedirs(args.dump_root)
+    
     with open(os.path.join(args.dump_root, 'test_flow.txt'), 'w') as tf:
         for i in frame_list:
             half_offset = int((args.seq_length-1)/2)

@@ -3,6 +3,8 @@
 checkpoint
 model
 GeoNet_models_and_predictions
+predictions
+log.txt
 
 __pycache__/
 *.py[cod]

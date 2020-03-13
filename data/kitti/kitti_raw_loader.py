@@ -14,11 +14,11 @@ class kitti_raw_loader(object):
                  img_width=416,
                  seq_length=3,
                  remove_static=True):
-        # '/userhome/34/h3567721/projects/GeoNet/data/kitti'
+        # '~/projects/GeoNet/data/kitti'
         dir_path = os.path.dirname(os.path.realpath(__file__)) 
 
         # split: stereo or eigen
-        # '/userhome/34/h3567721/projects/GeoNet/data/kitti/test_scenes_eigen.txt'
+        # '~/projects/GeoNet/data/kitti/test_scenes_eigen.txt'
         # e.g 2011_09_26_drive_0059, 2011_09_26_drive_0117
         test_scene_file = dir_path + '/test_scenes_' + split + '.txt'
 
