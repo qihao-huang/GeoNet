@@ -1,3 +1,13 @@
+python geonet_main.py \
+    --mode=train_rigid \
+    --dataset_dir="/userhome/34/h3567721/dataset/kitti/kitti_raw_eigen" \
+    --checkpoint_dir="/userhome/34/h3567721/projects/GeoNet/test" \
+    --learning_rate=0.0002 \
+    --seq_length=3 \
+    --batch_size=4 \
+    --max_steps=350000
+
+
 # depth and pose tasks
 # You can switch the network encoder by setting --dispnet_encoder flag, 
 # or perform depth scale normalization  by setting --scale_normalize as True. 
@@ -9,7 +19,6 @@ export CUDA_VISIBLE_DEVICES=0
 # 59552 for flow, raw_data, kitti_raw_stereo
 # 20409 for pose, odometry, kitti_odom
 # steps = (epoch * examples)/batch size
-# 350000 ~ (31 * 45016)/4
 
 # train depth
 python geonet_main.py \

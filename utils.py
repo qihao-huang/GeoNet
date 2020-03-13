@@ -8,7 +8,7 @@ def euler2mat(z, y, x):
     """Converts euler angles to rotation matrix
      TODO: remove the dimension for 'N' (deprecated for converting all source
            poses altogether)
-     Reference: https://github.com/pulkitag/pycaffe-utils/blob/master/rot_utils.py#L174
+    Reference: https://github.com/pulkitag/pycaffe-utils/blob/master/rot_utils.py#L174
     Args:
         z: rotation angle along z axis (in radians) -- size = [B, N]
         y: rotation angle along y axis (in radians) -- size = [B, N]
@@ -184,7 +184,9 @@ def compute_rigid_flow(depth, pose, intrinsics, reverse_pose=False):
     """
     batch, height, width = depth.get_shape().as_list()
     # Convert pose vector to matrix
+    # (4,6) -> (4,4,4)
     pose = pose_vec2mat(pose)
+    
     if reverse_pose:
         pose = tf.matrix_inverse(pose)
     # Construct pixel grid coordinates

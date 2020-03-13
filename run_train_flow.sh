@@ -11,5 +11,5 @@ python geonet_main.py \
     --learning_rate=0.0002 \
     --seq_length=3 \
     --max_steps=400000 \
-    --flownet_type=direct 
+    --flownet_type=direct
     # --init_ckpt_file

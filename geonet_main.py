@@ -33,21 +33,21 @@ flags.DEFINE_float("learning_rate",             0.0002,    "Learning rate for ad
 flags.DEFINE_integer("max_to_keep",                 20,    "Maximum number of checkpoints to save")
 flags.DEFINE_integer("max_steps",               300000,    "Maximum number of training iterations")
 flags.DEFINE_integer("save_ckpt_freq",            5000,    "Save the checkpoint model every save_ckpt_freq iterations")
-flags.DEFINE_float("alpha_recon_image",           0.85,    "Alpha weight between SSIM and L1 in reconstruction loss")
+flags.DEFINE_float("alpha_recon_image",           0.85,    "Alpha weight between SSIM and L1 in reconstruction loss") # alpha in loss rw
 
 ##### Configurations about DepthNet & PoseNet of GeoNet #####
 flags.DEFINE_string("dispnet_encoder",      "resnet50",    "Type of encoder for dispnet, vgg or resnet50")
 flags.DEFINE_boolean("scale_normalize",          False,    "Spatially normalize depth prediction")
-flags.DEFINE_float("rigid_warp_weight",            1.0,    "Weight for warping by rigid flow")
-flags.DEFINE_float("disp_smooth_weight",           0.5,    "Weight for disp smoothness")
+flags.DEFINE_float("rigid_warp_weight",            1.0,    "Weight for warping by rigid flow") 
+flags.DEFINE_float("disp_smooth_weight",           0.5,    "Weight for disp smoothness") # lambda ds
 
 ##### Configurations about ResFlowNet of GeoNet (or DirFlowNetS) #####
 flags.DEFINE_string("flownet_type",         "residual",    "type of flownet, residual or direct")
-flags.DEFINE_float("flow_warp_weight",             1.0,    "Weight for warping by full flow")
-flags.DEFINE_float("flow_smooth_weight",           0.2,    "Weight for flow smoothness")
-flags.DEFINE_float("flow_consistency_weight",      0.2,    "Weight for bidirectional flow consistency")
-flags.DEFINE_float("flow_consistency_alpha",       3.0,    "Alpha for flow consistency check")
-flags.DEFINE_float("flow_consistency_beta",       0.05,    "Beta for flow consistency check")
+flags.DEFINE_float("flow_warp_weight",             1.0,    "Weight for warping by full flow") 
+flags.DEFINE_float("flow_smooth_weight",           0.2,    "Weight for flow smoothness") # lambda_fs
+flags.DEFINE_float("flow_consistency_weight",      0.2,    "Weight for bidirectional flow consistency") # lambda gc
+flags.DEFINE_float("flow_consistency_alpha",       3.0,    "Alpha for flow consistency check") # alpha in lambda gc
+flags.DEFINE_float("flow_consistency_beta",       0.05,    "Beta for flow consistency check") # beta in lambda gc
 
 ##### Testing Configurations #####
 flags.DEFINE_string("output_dir",                 None,    "Test result output directory")
@@ -80,6 +80,10 @@ def train():
         # Data Loader
         print("# Data Loader")
         loader = DataLoader(opt)
+
+        # tgt_image: (4,128,416,3)
+        # src_image_stack: (4,128,416,6)
+        # intrinsics: (4,4,3,3)
         tgt_image, src_image_stack, intrinsics = loader.load_train_batch()
 
         # Build Model
@@ -97,11 +101,13 @@ def train():
             train_vars = [var for var in tf.trainable_variables()]
             vars_to_restore = slim.get_model_variables()
 
+        # If train from checkpoint file
         if opt.init_ckpt_file != None:
             init_assign_op, init_feed_dict = slim.assign_from_checkpoint(
                                             opt.init_ckpt_file, vars_to_restore)
 
         print("# Optimizer")
+        # TODO: only beta_1=0.9, what about beta_2=0.99
         optim = tf.train.AdamOptimizer(opt.learning_rate, 0.9)
         train_op = slim.learning.create_train_op(loss, optim,
                                                  variables_to_train=train_vars)
@@ -169,7 +175,7 @@ def train():
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
 
 def main(_):
-    opt.num_source = opt.seq_length - 1
+    opt.num_source = opt.seq_length - 1 # 3-1=2 or 5-1=4
     opt.num_scales = 4
 
     opt.add_flownet = opt.mode in ['train_flow', 'test_flow']
