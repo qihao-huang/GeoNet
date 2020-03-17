@@ -1,10 +1,10 @@
 # Byte-compiled / optimized / DLL files
 .vscode
-checkpoint
+checkpoint*
 model
 GeoNet_models_and_predictions
 predictions
-log.txt
+log*
 
 __pycache__/
 *.py[cod]

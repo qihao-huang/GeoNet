@@ -133,6 +133,7 @@ class GeoNetModel(object):
                 # (4, 128, 416, 2)
                 fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
                                  self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], False)
+                                
                 bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
                                  self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], True)
                 if not i:

@@ -42,9 +42,10 @@ def dump_example(n, args):
     intrinsics = example['intrinsics']
 
     # Extrinsic Matrix
-    # [R|t] = | r1,1  r2,1  r3,1 | t1 |
-    #         | r1,2  r2,2  r3,2 | t2 |
-    #         | r1,3  r2,3  r3,3 | t3 ⎥
+    # [R|t] = | r1,1  r2,1  r3,1  t1 |
+    #         | r1,2  r2,2  r3,2  t2 |
+    #         | r1,3  r2,3  r3,3  t3 ⎥
+    #         |    0     0     0   1 |   
     
     # |R t| = |I t|   |R 0| =  | 1 0 0 t1 |     | r1,1  r2,1  r3,1 0 |
     # |0 1|   |0 1| × |0 1|    | 0 1 0 t2 |  x  | r1,2  r2,2  r3,2 0 |

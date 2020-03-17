@@ -143,11 +143,13 @@ def meshgrid(batch, height, width, is_homogeneous=True):
                     tf.ones(shape=tf.stack([1, width])))
     x_t = (x_t + 1.0) * 0.5 * tf.cast(width - 1, tf.float32)
     y_t = (y_t + 1.0) * 0.5 * tf.cast(height - 1, tf.float32)
+
     if is_homogeneous:
         ones = tf.ones_like(x_t)
         coords = tf.stack([x_t, y_t, ones], axis=0)
     else:
         coords = tf.stack([x_t, y_t], axis=0)
+    
     coords = tf.tile(tf.expand_dims(coords, 0), [batch, 1, 1, 1])
 
     return coords
@@ -183,22 +185,28 @@ def compute_rigid_flow(depth, pose, intrinsics, reverse_pose=False):
       Rigid flow from target image to source image [batch, height_t, width_t, 2]
     """
     batch, height, width = depth.get_shape().as_list()
+
     # Convert pose vector to matrix
     # (4,6) -> (4,4,4)
     pose = pose_vec2mat(pose)
     
     if reverse_pose:
         pose = tf.matrix_inverse(pose)
+    
     # Construct pixel grid coordinates
     pixel_coords = meshgrid(batch, height, width)
     tgt_pixel_coords = tf.transpose(pixel_coords[:, :2, :, :], [0, 2, 3, 1])
+    
     # Convert pixel coordinates to the camera frame
     cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
+
     # Construct a 4x4 intrinsic matrix
     filler = tf.constant([0.0, 0.0, 0.0, 1.0], shape=[1, 1, 4])
     filler = tf.tile(filler, [batch, 1, 1])
+    
     intrinsics = tf.concat([intrinsics, tf.zeros([batch, 3, 1])], axis=2)
     intrinsics = tf.concat([intrinsics, filler], axis=1)
+    
     # Get a 4x4 transformation matrix from 'target' camera frame to 'source'
     # pixel frame.
     proj_tgt_cam_to_src_pixel = tf.matmul(intrinsics, pose)
