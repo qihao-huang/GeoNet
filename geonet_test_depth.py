@@ -13,6 +13,8 @@ def test_depth(opt):
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
 
+    print("test_files: ", len(test_files))
+
     ##### init #####
     input_uint8 = tf.placeholder(tf.uint8, [opt.batch_size,
                 opt.img_height, opt.img_width, 3], name='raw_input')

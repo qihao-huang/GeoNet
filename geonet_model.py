@@ -8,40 +8,33 @@ import tensorflow.contrib.slim as slim
 from geonet_nets import *
 from utils import *
 
-# loader = DataLoader(opt)
-# tgt_image, src_image_stack, intrinsics = loader.load_train_batch()
-# model = GeoNetModel(opt, tgt_image, src_image_stack, intrinsics)
-# loss = model.total_loss
-
 class GeoNetModel(object):
 
     def __init__(self, opt, tgt_image, src_image_stack, intrinsics):
         self.opt = opt
-        # TODO: why? *2-1 in preprocess
         self.tgt_image = self.preprocess_image(tgt_image) # (4, 128, 416, 3)
         self.src_image_stack = self.preprocess_image(src_image_stack) # # (4, 128, 416, 6)
         self.intrinsics = intrinsics # (4, 4, 3, 3)
 
         self.build_model()
 
-        # TODO: test cases? return ?
         if not opt.mode in ['train_rigid', 'train_flow']:
+            # if test, we don't need build losses function
             return
 
         self.build_losses()
 
     # opt.mode: train_rigid, train_flow, test_depth, test_pose, test_flow
-
     # opt.num_source = opt.seq_length - 1 #  3-1=2 or 5-1=4
-    # opt.num_scales = 4
-
+    # opt.num_scales = 4, pyramid
+    
     # opt.add_flownet = opt.mode in ['train_flow', 'test_flow']
     
-    # dispnet: if depth or if residual flow
+    # dispnet: if train/test depth or if train residual flow
     # opt.add_dispnet = opt.add_flownet and opt.flownet_type == 'residual' \
     #                   or opt.mode in ['train_rigid', 'test_depth']
 
-    # posenet: if pose or if residual flow
+    # posenet: if train/test pose or if train residual flow
     # opt.add_posenet = opt.add_flownet and opt.flownet_type == 'residual' \
     #                   or opt.mode in ['train_rigid', 'test_pose']
 
@@ -53,8 +46,10 @@ class GeoNetModel(object):
         # self.tgt_image_pyramid[0], (4, 128, 416, 3)
         self.tgt_image_pyramid = self.scale_pyramid(self.tgt_image, opt.num_scales)
 
+        # TODO: why to tile, duplicate first channel?
         # self.tgt_image_tile_pyramid: list, len=4,
         # self.tgt_image_tile_pyramid[0], (8, 128, 416, 3)
+        # [opt.num_source, 1, 1, 1] = [2,1,1,1]
         self.tgt_image_tile_pyramid = [tf.tile(img, [opt.num_source, 1, 1, 1]) \
                                       for img in self.tgt_image_pyramid]
 
@@ -404,6 +399,7 @@ class GeoNetModel(object):
             return None
         else:
             image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+            # TODO: why? *2-1 in preprocess
             return image * 2. -1.
 
     def deprocess_image(self, image):

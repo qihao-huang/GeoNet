@@ -1,6 +1,10 @@
 # download the KITTI flow 2015 dataset and its multi-view extension. 
 # For replicating our flow results in the paper, a seq_length of 3 is recommended.
 
+export CUDA_VISIBLE_DEVICES=0
+
+user_path="/userhome/34/h3567721"
+
 # format the testing data
 # python kitti_eval/generate_multiview_extension.py \
 #     --dataset_dir="/userhome/34/h3567721/dataset/kitti/flow/data_scene_flow_multiview/" \
@@ -12,13 +16,13 @@
 # test your trained model
 python geonet_main.py \
     --mode=test_flow \
-    --dataset_dir="/userhome/34/h3567721/dataset/kitti/flow/data_scene_flow_mv_dump_test_data" \
+    --dataset_dir=$user_pat"/dataset/kitti/flow/data_scene_flow_mv_dump_test_data" \
     --init_ckpt_file=/path/to/trained/model/ \
     --flownet_type=direct \
     --batch_size=1 \
-    --output_dir="/userhome/34/h3567721/projects/GeoNet/predictions/test_flow"
+    --output_dir=$user_path"/projects/GeoNet/predictions/test_flow"
 
 # evaluation script
 python kitti_eval/eval_flow.py \
     --dataset_dir=/path/to/kitti_stereo_2015/ \
-    --pred_dir="/userhome/34/h3567721/projects/GeoNet/predictions/eval_flow"
+    --pred_dir=$user_pat"/projects/GeoNet/predictions/eval_flow"
