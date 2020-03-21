@@ -8,20 +8,23 @@ user_path="/userhome/34/h3567721"
 python geonet_main.py \
     --mode=test_pose \
     --dataset_dir=$user_path"/dataset/kitti/odometry/dataset/" \
-    --init_ckpt_file=$user_path"/projects/GeoNet/GeoNet_models_and_predictions/models/geonet_posenet" \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint_pose/model-345000" \
     --batch_size=1 \
     --seq_length=5 \
     --pose_test_seq=9 \
-    --output_dir=$user_path"/projects/Depth/GeoNet/predictions/test_pose"
+    --output_dir=$user_path"/projects/Depth/GeoNet/predictions/test_pose/"
 
 # generate the groundtruth pose snippets
+# TODO: wrong?
 python kitti_eval/generate_pose_snippets.py \
-    --dataset_dir=/path/to/kitti/odom/dataset/ \
-    --output_dir=$user_path"/dataset/kitti/GT_pose_snippets" \
+    --dataset_dir=$user_path"/dataset/kitti/odometry/dataset/" \
+    --output_dir=$user_path"/dataset/kitti/GT_pose_snippets/" \
     --seq_id=09 \
     --seq_length=5
 
 # evaluate your predictions
 python kitti_eval/eval_pose.py \
-    --gtruth_dir=$user_path"/dataset/kitti/GT_pose_snippets" \
-    --pred_dir=$user_path"/projects/Depth/GeoNet/predictions/eval_pose"
+    --gtruth_dir=$user_path"/dataset/kitti/GT_pose_snippets/" \
+    --pred_dir=$user_path"/projects/Depth/GeoNet/predictions/test_pose/"
+
+# ATE mean: 0.0134, std: 0.0079

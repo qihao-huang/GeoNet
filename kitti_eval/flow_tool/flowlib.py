@@ -650,7 +650,10 @@ def read_png_file(flow_file):
 
 def read_kitti_png_file(flow_file):
     # print flow_file
-    flow_img = cv2.imread(flow_file, cv2.CV_LOAD_IMAGE_UNCHANGED)
+    # print(cv2.__version__)
+    # print(flow_file)
+    # flow_img = cv2.imread(flow_file, cv2.CV_LOAD_IMAGE_UNCHANGED)
+    flow_img = cv2.imread(flow_file, -1)
     flow_img = flow_img.astype(float)
     # print flow_img.shape
     flow_data = np.zeros(flow_img.shape, dtype = np.float)
