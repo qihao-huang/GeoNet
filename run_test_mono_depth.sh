@@ -2,8 +2,6 @@ export CUDA_VISIBLE_DEVICES=0
 
 user_path="/userhome/34/h3567721"
 
-# 697
-
 python geonet_main.py \
     --mode=test_depth \
     --dataset_dir=$user_path"/dataset/kitti/raw_data/" \

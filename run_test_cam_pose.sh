@@ -15,7 +15,6 @@ python geonet_main.py \
     --output_dir=$user_path"/projects/Depth/GeoNet/predictions/test_pose/"
 
 # generate the groundtruth pose snippets
-# TODO: wrong?
 python kitti_eval/generate_pose_snippets.py \
     --dataset_dir=$user_path"/dataset/kitti/odometry/dataset/" \
     --output_dir=$user_path"/dataset/kitti/GT_pose_snippets/" \
