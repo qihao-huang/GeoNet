@@ -9,7 +9,6 @@ from geonet_nets import *
 from utils import *
 
 class GeoNetModel(object):
-
     def __init__(self, opt, tgt_image, src_image_stack, intrinsics):
         self.opt = opt
         self.tgt_image = self.preprocess_image(tgt_image) # (4, 128, 416, 3)
@@ -42,23 +41,24 @@ class GeoNetModel(object):
         opt = self.opt
 
         # self.tgt_image: (4, 128, 416, 3)
-        # self.tgt_image_pyramid: list, len=4
-        # self.tgt_image_pyramid[0], (4, 128, 416, 3)
+        # self.tgt_image_pyramid:
+        # [(4, 128, 416, 3), (4, 64, 208, 3), (4, 32, 104, 3), (4, 16, 52, 3)]
         self.tgt_image_pyramid = self.scale_pyramid(self.tgt_image, opt.num_scales)
 
-        # TODO: why to tile, duplicate first channel?
-        # self.tgt_image_tile_pyramid: list, len=4,
-        # self.tgt_image_tile_pyramid[0], (8, 128, 416, 3)
+        # tile: duplicate first channel
+        # self.tgt_image_tile_pyramid:
         # [opt.num_source, 1, 1, 1] = [2,1,1,1]
+        # [(8, 128, 416, 3), (8, 64, 208, 3), (8, 32, 104, 3), (8, 16, 52, 3)]
         self.tgt_image_tile_pyramid = [tf.tile(img, [opt.num_source, 1, 1, 1]) \
                                       for img in self.tgt_image_pyramid]
 
         # src images concated along batch dimension
         if self.src_image_stack != None:
-            # (8, 128, 416, 3)
+            # (8, 128, 416, 3), src_1 and src_2 concat in axis=0
             self.src_image_concat = tf.concat([self.src_image_stack[:,:,:,3*i:3*(i+1)] \
                                     for i in range(opt.num_source)], axis=0)
-            # (8, 128, 416, 3)
+            
+            # [(8, 128, 416, 3), (8, 64, 208, 3), (8, 32, 104, 3), (8, 16, 52, 3)]
             self.src_image_concat_pyramid = self.scale_pyramid(self.src_image_concat, opt.num_scales)
 
         if opt.add_dispnet:
@@ -88,14 +88,20 @@ class GeoNetModel(object):
             # for test_depth mode we only predict the depth of the target image
             self.dispnet_inputs = self.tgt_image
         else:
-            # multiple depth predictions; tgt: disp[:bs,:,:,:] src.i: disp[bs*(i+1):bs*(i+2),:,:,:]
+            # multiple depth predictions; 
+            # tgt: disp[:bs,:,:,:] src.i: disp[bs*(i+1):bs*(i+2),:,:,:]
+            # >>> a = [1,2,3,4,5,6,7,8,9,10,11,12]
+            # >>> a[0:4]            # [1, 2, 3, 4]
+            # >>> a[4:8]            # [5, 6, 7, 8]
+            # >>> a[8:12]           # [9, 10, 11, 12]
             self.dispnet_inputs = self.tgt_image
             for i in range(opt.num_source):
                 self.dispnet_inputs = tf.concat([self.dispnet_inputs, self.src_image_stack[:,:,:,3*i:3*(i+1)]], axis=0)
         
         # build dispnet
-        # self.dispnet_inputs: (12, 128, 416, 3)
-        # self.pred_disp: list len=4, (12, 128, 416, 1) 
+        # self.dispnet_inputs: (12 (tgt, src_1, src_2), 128, 416, 3), axis0: 0:4 tgt, 4:8 src_1, 8:12 src_2
+        # self.pred_disp:
+        # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
         self.pred_disp = disp_net(opt, self.dispnet_inputs)
 
         if opt.scale_normalize:
@@ -103,42 +109,52 @@ class GeoNetModel(object):
             # bring improvement in depth estimation, but not included in our paper.
             self.pred_disp = [self.spatial_normalize(disp) for disp in self.pred_disp]
 
-        # TODO: why inverse
         self.pred_depth = [1./d for d in self.pred_disp]
 
     def build_posenet(self):
         opt = self.opt
 
-        # build posenet_inputs, (4,128,416,9)
+        # build posenet_inputs, (4,128,416,9(tgt,src_1,src_2))
         self.posenet_inputs = tf.concat([self.tgt_image, self.src_image_stack], axis=3)
         
         # build posenet
-        # self.pred_poses: (4,2,6)
+        # self.pred_poses: (4, 2(tgt->src_1, tgt->src_2), 6(tx,ty,tx,rx,ry,rz))
         self.pred_poses = pose_net(opt, self.posenet_inputs)
 
     def build_rigid_flow_warping(self):
         opt = self.opt
-        bs = opt.batch_size
+        bs = opt.batch_size # 4
 
         # build rigid flow (fwd: tgt->src, bwd: src->tgt)
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
         for s in range(opt.num_scales):
             for i in range(opt.num_source):
-                # (4, 128, 416, 2)
+                
+                # self.pred_depth:
+                # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
+                # self.pred_depth[s(0:3)][:bs], 0:4: the whole batch of tgt
+                # tf.squeeze(): (4, 128, 416, 1) -> (4, 128, 416) 
+                # self.pred_poses[:,0,:]: tgt->src_1
+                # self.pred_poses[:,1,:]: tgt->src_2
+                # fwd_rigid_flow shape: (4, 128, 416, 2)
                 fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
                                  self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], False)
-                                
+                
+                # backward: src_1 -> tgt, src_2 -> tgt
+                # src_1: 4:8, src_2: 8:12
+                # bwd_rigid_flow shape: (4, 128, 416, 2)
                 bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
                                  self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], True)
                 if not i:
-                    # when i==0
                     fwd_rigid_flow_concat = fwd_rigid_flow
                     bwd_rigid_flow_concat = bwd_rigid_flow
                 else:
                     fwd_rigid_flow_concat = tf.concat([fwd_rigid_flow_concat, fwd_rigid_flow], axis=0)
                     bwd_rigid_flow_concat = tf.concat([bwd_rigid_flow_concat, bwd_rigid_flow], axis=0)
 
+            # tgt -> src_1 concat tgt -> src_2 in axis = 0
+            # fwd_rigid_flow_concat shape: (8, 128, 416, 2)
             self.fwd_rigid_flow_pyramid.append(fwd_rigid_flow_concat)
             self.bwd_rigid_flow_pyramid.append(bwd_rigid_flow_concat)
         
@@ -161,7 +177,6 @@ class GeoNetModel(object):
         opt = self.opt
 
         # build flownet_inputs
-        # TODO: why tile
         self.fwd_flownet_inputs = tf.concat([self.tgt_image_tile_pyramid[0], self.src_image_concat_pyramid[0]], axis=3)
         self.bwd_flownet_inputs = tf.concat([self.src_image_concat_pyramid[0], self.tgt_image_tile_pyramid[0]], axis=3)
 
@@ -175,7 +190,6 @@ class GeoNetModel(object):
                                       self.bwd_rigid_warp_pyramid[0],
                                       self.bwd_rigid_flow_pyramid[0],
                                       self.L2_norm(self.bwd_rigid_error_pyramid[0])], axis=3)
-        # TODO: concat
         self.flownet_inputs = tf.concat([self.fwd_flownet_inputs, self.bwd_flownet_inputs], axis=0)
         
         # build flownet
@@ -196,7 +210,6 @@ class GeoNetModel(object):
         if opt.flownet_type == 'residual':
             self.fwd_full_flow_pyramid = [self.fwd_full_flow_pyramid[s] + self.fwd_rigid_flow_pyramid[s] for s in range(opt.num_scales)]
             self.bwd_full_flow_pyramid = [self.bwd_full_flow_pyramid[s] + self.bwd_rigid_flow_pyramid[s] for s in range(opt.num_scales)]   
-
 
     def build_full_flow_warping(self):
         opt = self.opt
@@ -233,7 +246,6 @@ class GeoNetModel(object):
         self.bwd_consist_bound = [tf.stop_gradient(tf.maximum(v, opt.flow_consistency_alpha)) for v in self.bwd_consist_bound]
 
         # build flow consistency mask
-        # TODO:
         self.noc_masks_src = [tf.cast(tf.less(self.L2_norm(self.bwd_flow_diff_pyramid[s]) * 2**s, 
                              self.bwd_consist_bound[s]), tf.float32) for s in range(opt.num_scales)]
         self.noc_masks_tgt = [tf.cast(tf.less(self.L2_norm(self.fwd_flow_diff_pyramid[s]) * 2**s,
@@ -277,7 +289,6 @@ class GeoNetModel(object):
                                 (tf.reduce_mean(self.fwd_full_error_pyramid[s]) + \
                                  tf.reduce_mean(self.bwd_full_error_pyramid[s]))
                 else:
-                    # TODO: ?
                     # TODO: fwd_full_error_pyramid
                     flow_warp_loss += opt.flow_warp_weight*opt.num_source/2 * \
                                 (tf.reduce_sum(tf.reduce_mean(self.fwd_full_error_pyramid[s], axis=3, keep_dims=True) * \
@@ -359,6 +370,9 @@ class GeoNetModel(object):
                 ratio = 2 ** (i + 1) # 2, 4, 8
                 nh = int(h / ratio)
                 nw = int(w / ratio)
+                # tmp = tf.image.resize_area(img, [nh, nw])
+                # print("tmp shape: ", tmp.get_shape().as_list())
+                # scaled_imgs.append(tmp)
                 scaled_imgs.append(tf.image.resize_area(img, [nh, nw]))
             
             return scaled_imgs

@@ -62,7 +62,6 @@ flags.DEFINE_boolean("add_posenet",     None,    "add configuration")
 opt = flags.FLAGS
 
 def train():
-
     seed = 8964
     tf.set_random_seed(seed)
     np.random.seed(seed)
@@ -105,7 +104,6 @@ def train():
                                             opt.init_ckpt_file, vars_to_restore)
 
         print("# Optimizer")
-        # TODO: only beta_1=0.9, what about beta_2=0.99
         optim = tf.train.AdamOptimizer(opt.learning_rate, 0.9)
         train_op = slim.learning.create_train_op(loss, optim,
                                                  variables_to_train=train_vars)

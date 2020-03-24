@@ -13,7 +13,7 @@ python kitti_eval/generate_multiview_extension.py \
     --cam_id=02 \
     --seq_length=3
 
-# TODO: if train with --flownet_type=direct, shoule be tested with direct as well
+# if train with --flownet_type=direct, shoule be tested with direct as well
 # test your trained model
 python geonet_main.py \
     --mode=test_flow \

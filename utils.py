@@ -91,18 +91,28 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
       Coords in the camera frame [batch, 3 (4 if homogeneous), height, width]
     """
     batch, height, width = depth.get_shape().as_list()
+
+    # [4,1,128*416=53248]
     depth = tf.reshape(depth, [batch, 1, -1])
+
+    # [4,3,53248]
     pixel_coords = tf.reshape(pixel_coords, [batch, 3, -1])
+
+    # [4,3,53248]
     cam_coords = tf.matmul(tf.matrix_inverse(intrinsics), pixel_coords) * depth
+
     if is_homogeneous:
         ones = tf.ones([batch, 1, height*width])
         cam_coords = tf.concat([cam_coords, ones], axis=1)
+
+    # [4,4,128,416]
     cam_coords = tf.reshape(cam_coords, [batch, -1, height, width])
 
     return cam_coords
 
 
 def cam2pixel(cam_coords, proj):
+    
     """Transforms coordinates in a camera frame to the pixel frame.
 
     Args:
@@ -112,7 +122,10 @@ def cam2pixel(cam_coords, proj):
       Pixel coordinates projected from the camera frame [batch, height, width, 2]
     """
     batch, _, height, width = cam_coords.get_shape().as_list()
+
+    # [4,4,128*416=53248]
     cam_coords = tf.reshape(cam_coords, [batch, 4, -1])
+
     unnormalized_pixel_coords = tf.matmul(proj, cam_coords)
     x_u = tf.slice(unnormalized_pixel_coords, [0, 0, 0], [-1, 1, -1])
     y_u = tf.slice(unnormalized_pixel_coords, [0, 1, 0], [-1, 1, -1])
@@ -164,8 +177,11 @@ def flow_warp(src_img, flow):
       Source image inverse warped to the target image plane [batch, height_t, width_t, 3]
     """
     batch, height, width, _ = src_img.get_shape().as_list()
+    # meshgrid(batch, height, width, False) -> [8,2,128,416]
+    # transpose -> [8,128,416,2] 
     tgt_pixel_coords = tf.transpose(meshgrid(batch, height, width, False),
                                     [0, 2, 3, 1])
+    
     src_pixel_coords = tgt_pixel_coords + flow
     output_img = bilinear_sampler(src_img, src_pixel_coords)
 
@@ -184,6 +200,7 @@ def compute_rigid_flow(depth, pose, intrinsics, reverse_pose=False):
     Returns:
       Rigid flow from target image to source image [batch, height_t, width_t, 2]
     """
+    # batch: 4,  height: 128, width: 416
     batch, height, width = depth.get_shape().as_list()
 
     # Convert pose vector to matrix
@@ -194,10 +211,14 @@ def compute_rigid_flow(depth, pose, intrinsics, reverse_pose=False):
         pose = tf.matrix_inverse(pose)
     
     # Construct pixel grid coordinates
+    # [4, 3, 128, 416]
     pixel_coords = meshgrid(batch, height, width)
+
+    # [4, 128, 416, 2]
     tgt_pixel_coords = tf.transpose(pixel_coords[:, :2, :, :], [0, 2, 3, 1])
     
     # Convert pixel coordinates to the camera frame
+    # D K^-1 P
     cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
 
     # Construct a 4x4 intrinsic matrix
@@ -207,9 +228,11 @@ def compute_rigid_flow(depth, pose, intrinsics, reverse_pose=False):
     intrinsics = tf.concat([intrinsics, tf.zeros([batch, 3, 1])], axis=2)
     intrinsics = tf.concat([intrinsics, filler], axis=1)
     
-    # Get a 4x4 transformation matrix from 'target' camera frame to 'source'
-    # pixel frame.
-    proj_tgt_cam_to_src_pixel = tf.matmul(intrinsics, pose)
+    # Get a 4x4 transformation matrix from 'target' camera frame to 'source' pixel frame.
+    # K [R|t]
+    proj_tgt_cam_to_src_pixel = tf.matmul(intrinsics, pose) 
+
+    # K [R|t] D K^-1 P  - P
     src_pixel_coords = cam2pixel(cam_coords, proj_tgt_cam_to_src_pixel)
     rigid_flow = src_pixel_coords - tgt_pixel_coords
 
