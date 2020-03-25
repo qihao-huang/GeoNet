@@ -32,17 +32,42 @@ def pose_net(opt, posenet_inputs):
                             normalizer_params=batch_norm_params,
                             weights_regularizer=slim.l2_regularizer(0.0001),
                             activation_fn=tf.nn.relu):
+
+            # posenet_inputs: [4, 128, 416, 9]
             conv1  = slim.conv2d(posenet_inputs, 16,  7, 2)
+            # conv1:  [4, 64, 208, 16] = ([4, 128, 416, 9] -> kernel [7, 7, 9, 16], strides: [1,2,2,1])
+            
             conv2  = slim.conv2d(conv1, 32,  5, 2)
+            # conv2:  [4, 32, 104, 32] = ([4, 64, 208, 16] -> kernel [5, 5, 16, 32], strides: [1,2,2,1])
+            
             conv3  = slim.conv2d(conv2, 64,  3, 2)
+            # conv3:  [4, 16, 52, 64] = ([4, 32, 104, 9] -> kernel [3, 3, 32, 64], strides: [1,2,2,1])
+            
             conv4  = slim.conv2d(conv3, 128, 3, 2)
+            # conv4:  [4, 8, 26, 128] = ([4, 16, 52, 64] -> kernel [3, 3, 64, 128], strides: [1,2,2,1])
+
             conv5  = slim.conv2d(conv4, 256, 3, 2)
+            # conv5:  [4, 4, 13, 256] = ([4, 8, 26, 128] -> kernel [3, 3, 128, 256], strides: [1,2,2,1])
+
             conv6  = slim.conv2d(conv5, 256, 3, 2)
+            # conv6:  [4, 2, 7, 256] = ([4, 4, 13, 256] -> kernel [3, 3, 256, 256], strides: [1,2,2,1])
+
             conv7  = slim.conv2d(conv6, 256, 3, 2)
+            # conv7:  [4, 1, 4, 256] = ([4, 2, 7, 256] -> kernel [3, 3, 256, 256], strides: [1,2,2,1])
+
+            # last layer no nonlinear activation 
+            # 1*1 conv, 3 Euler angles, 3-D translation for each source view
             pose_pred = slim.conv2d(conv7, 6*opt.num_source, 1, 1,
                                     normalizer_fn=None, activation_fn=None)
+            # pose_pred:  [4, 1, 4, 12] = ([4, 1, 4, 256] -> filter [1, 1, 256, 12], strides: [1,1,1,1])
+
+            # apply global average pooling to aggregate predictions at all spatial locations
+            # pose_avg: [4, 12]
             pose_avg = tf.reduce_mean(pose_pred, [1, 2])
+
+            # [4,2,6]
             pose_final = 0.01 * tf.reshape(pose_avg, [-1, opt.num_source, 6])
+
             return pose_final
 
 def build_resnet50(inputs, get_pred, is_training, var_scope):
@@ -53,54 +78,67 @@ def build_resnet50(inputs, get_pred, is_training, var_scope):
                             normalizer_params=batch_norm_params,
                             weights_regularizer=slim.l2_regularizer(0.0001),
                             activation_fn=tf.nn.relu):
-            conv1 = conv(inputs, 64, 7, 2) # H/2  -   64D
+            conv1 = conv(inputs, 64, 7, 2) # H/2  -   64D, 
+            # inputs [12, 128, 416, 3] -> conv1: [12, 64, 208, 64]
+    
             pool1 = maxpool(conv1,           3) # H/4  -   64D
-            conv2 = resblock(pool1,      64, 3) # H/8  -  256D
-            conv3 = resblock(conv2,     128, 4) # H/16 -  512D
-            conv4 = resblock(conv3,     256, 6) # H/32 - 1024D
-            conv5 = resblock(conv4,     512, 3) # H/64 - 2048D
+            # conv1: [12, 64, 208, 64] -> pool1: [12, 32, 104, 64]
+            
+            conv2 = resblock(pool1,      64, 3) # H/8  -  256D # [12, 16, 52, 256]
+            conv3 = resblock(conv2,     128, 4) # H/16 -  512D # [12, 8, 26, 512]
+            conv4 = resblock(conv3,     256, 6) # H/32 - 1024D # [12, 4, 13, 1024]
+            conv5 = resblock(conv4,     512, 3) # H/64 - 2048D # [12, 2, 7, 2048]
 
-            skip1 = conv1
-            skip2 = pool1
-            skip3 = conv2
-            skip4 = conv3
-            skip5 = conv4
+            skip1 = conv1 # [12, 64, 208, 64]
+            skip2 = pool1 # [12, 32, 104, 64]
+            skip3 = conv2 # [12, 16, 52, 256]
+            skip4 = conv3 # [12, 8, 26,  512]
+            skip5 = conv4 # [12, 4, 13, 1024]
             
             # DECODING
-            upconv6 = upconv(conv5,   512, 3, 2) #H/32
-            upconv6 = resize_like(upconv6, skip5)
-            concat6 = tf.concat([upconv6, skip5], 3)
-            iconv6  = conv(concat6,   512, 3, 1)
+            upconv6 = upconv(conv5,   512, 3, 2) #H/32      # [12, 4, 14,  512]
+            upconv6 = resize_like(upconv6, skip5)           # [12, 4, 13,  512]
+            concat6 = tf.concat([upconv6, skip5], 3)        # [12, 4, 13, 1536]
+            iconv6  = conv(concat6,   512, 3, 1)            # [12, 4, 13,  512]
+            
+            upconv5 = upconv(iconv6, 256, 3, 2) #H/16       # [12, 8, 26,  256]
+            upconv5 = resize_like(upconv5, skip4)           # [12, 8, 26,  256]
+            concat5 = tf.concat([upconv5, skip4], 3)        # [12, 8, 26,  768]
+            iconv5  = conv(concat5,   256, 3, 1)            # [12, 8, 26,  256]
 
-            upconv5 = upconv(iconv6, 256, 3, 2) #H/16
-            upconv5 = resize_like(upconv5, skip4)
-            concat5 = tf.concat([upconv5, skip4], 3)
-            iconv5  = conv(concat5,   256, 3, 1)
+            upconv4 = upconv(iconv5,  128, 3, 2) #H/8 #     # [12, 16, 52, 128]
+            upconv4 = resize_like(upconv4, skip3)           # [12, 16, 52, 128]
+            concat4 = tf.concat([upconv4, skip3], 3)        # [12, 16, 52, 384]
+            iconv4  = conv(concat4,   128, 3, 1)            # [12, 16, 52, 128]
 
-            upconv4 = upconv(iconv5,  128, 3, 2) #H/8
-            upconv4 = resize_like(upconv4, skip3)
-            concat4 = tf.concat([upconv4, skip3], 3)
-            iconv4  = conv(concat4,   128, 3, 1)
-            pred4 = get_pred(iconv4)
-            upred4  = upsample_nn(pred4, 2)
+            # calling get_disp_resnet50(iconv4)
+            pred4 = get_pred(iconv4)                        # [12, 16, 52,  1]
+            upred4  = upsample_nn(pred4, 2)                 # [12, 32, 104, 1]
 
-            upconv3 = upconv(iconv4,   64, 3, 2) #H/4
-            concat3 = tf.concat([upconv3, skip2, upred4], 3)
-            iconv3  = conv(concat3,    64, 3, 1)
-            pred3 = get_pred(iconv3)
-            upred3  = upsample_nn(pred3, 2)
+            upconv3 = upconv(iconv4,   64, 3, 2) #H/4       # [12, 32, 104, 64]
+            concat3 = tf.concat([upconv3, skip2, upred4], 3)# [12, 32, 104, 129]
+            iconv3  = conv(concat3,    64, 3, 1)            # [12, 32, 104, 64]
 
-            upconv2 = upconv(iconv3,   32, 3, 2) #H/2
-            concat2 = tf.concat([upconv2, skip1, upred3], 3)
-            iconv2  = conv(concat2,    32, 3, 1)
-            pred2 = get_pred(iconv2)
-            upred2  = upsample_nn(pred2, 2)
+            # calling get_disp_resnet50(iconv3)             
+            pred3 = get_pred(iconv3)                        # [12, 32, 104, 1]
+            upred3  = upsample_nn(pred3, 2)                 # [12, 64, 208, 1]
 
-            upconv1 = upconv(iconv2,  16, 3, 2) #H
-            concat1 = tf.concat([upconv1, upred2], 3)
-            iconv1  = conv(concat1,   16, 3, 1)
-            pred1 = get_pred(iconv1)
+            upconv2 = upconv(iconv3,   32, 3, 2) #H/2       # [12, 64, 208, 32]
+            concat2 = tf.concat([upconv2, skip1, upred3], 3)# [12, 64, 208, 97]
+            iconv2  = conv(concat2,    32, 3, 1)            # [12, 64, 208, 32]
 
+            # calling get_disp_resnet50(iconv2)
+            pred2 = get_pred(iconv2)                        # [12, 64, 208, 1]
+            upred2  = upsample_nn(pred2, 2)                 # [12, 128, 416, 1]
+
+            upconv1 = upconv(iconv2,  16, 3, 2) #H          # [12, 128, 416, 16]
+            concat1 = tf.concat([upconv1, upred2], 3)       # [12, 128, 416, 17]
+            iconv1  = conv(concat1,   16, 3, 1)             # [12, 128, 416, 16]
+
+            # calling get_disp_resnet50(iconv1)
+            pred1 = get_pred(iconv1)                        # [12, 128, 416, 1]
+
+            # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
             return [pred1, pred2, pred3, pred4]
 
 def build_vgg(inputs, get_pred, is_training, var_scope):
@@ -174,17 +212,20 @@ def build_vgg(inputs, get_pred, is_training, var_scope):
 def conv(x, num_out_layers, kernel_size, stride, activation_fn=tf.nn.relu, normalizer_fn=slim.batch_norm):
     p = np.floor((kernel_size - 1) / 2).astype(np.int32)
     p_x = tf.pad(x, [[0, 0], [p, p], [p, p], [0, 0]])
+    # default stride=1, default padding="SAME" for slim.conv2d()
     return slim.conv2d(p_x, num_out_layers, kernel_size, stride, 'VALID', activation_fn=activation_fn, normalizer_fn=normalizer_fn)
 
 def maxpool(x, kernel_size):
     p = np.floor((kernel_size - 1) / 2).astype(np.int32)
     p_x = tf.pad(x, [[0, 0], [p, p], [p, p], [0, 0]])
+    # default stride=2, default padding='VALID'
     return slim.max_pool2d(p_x, kernel_size)
 
 def get_disp_vgg(x):
     disp = DISP_SCALING_VGG * slim.conv2d(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
 
+# TODO: scaling?
 def get_disp_resnet50(x):
     disp = DISP_SCALING_RESNET50 * conv(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
