@@ -96,6 +96,7 @@ def build_resnet50(inputs, get_pred, is_training, var_scope):
             skip5 = conv4 # [12, 4, 13, 1024]
             
             # DECODING
+            # x, num_out_layers, kernel_size, scale
             upconv6 = upconv(conv5,   512, 3, 2) #H/32      # [12, 4, 14,  512]
             upconv6 = resize_like(upconv6, skip5)           # [12, 4, 13,  512]
             concat6 = tf.concat([upconv6, skip5], 3)        # [12, 4, 13, 1536]
@@ -225,8 +226,10 @@ def get_disp_vgg(x):
     disp = DISP_SCALING_VGG * slim.conv2d(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
 
-# TODO: scaling?
 def get_disp_resnet50(x):
+    # TODO: DISP_SCALING_RESNET50: scaling?
+    # TODO: why sigmoid
+    # TODO: 0.01?
     disp = DISP_SCALING_RESNET50 * conv(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
 
@@ -253,6 +256,7 @@ def upconv(x, num_out_layers, kernel_size, scale):
     return cnv
 
 def resconv(x, num_layers, stride):
+    # TODO: bugs!
     # Actually here exists a bug: tf.shape(x)[3] != num_layers is always true,
     # but we preserve it here for consistency with Godard's implementation.
     do_proj = tf.shape(x)[3] != num_layers or stride == 2

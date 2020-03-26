@@ -55,7 +55,6 @@ def euler2mat(z, y, x):
     
     return rotMat
 
-
 def pose_vec2mat(vec):
     """Converts 6DoF parameters to transformation matrix
     Args:
@@ -77,7 +76,6 @@ def pose_vec2mat(vec):
     transform_mat = tf.concat([transform_mat, filler], axis=1)
 
     return transform_mat
-
 
 def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
     """Transforms coordinates in the pixel frame to the camera frame.
@@ -110,7 +108,6 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
 
     return cam_coords
 
-
 def cam2pixel(cam_coords, proj):
     
     """Transforms coordinates in a camera frame to the pixel frame.
@@ -132,11 +129,11 @@ def cam2pixel(cam_coords, proj):
     z_u = tf.slice(unnormalized_pixel_coords, [0, 2, 0], [-1, 1, -1])
     x_n = x_u / (z_u + 1e-10)
     y_n = y_u / (z_u + 1e-10)
+    
     pixel_coords = tf.concat([x_n, y_n], axis=1)
     pixel_coords = tf.reshape(pixel_coords, [batch, 2, height, width])
 
     return tf.transpose(pixel_coords, perm=[0, 2, 3, 1])
-
 
 def meshgrid(batch, height, width, is_homogeneous=True):
     """Construct a 2D meshgrid.
@@ -167,7 +164,6 @@ def meshgrid(batch, height, width, is_homogeneous=True):
 
     return coords
 
-
 def flow_warp(src_img, flow):
     """ inverse warp a source image to the target image plane based on flow field
     Args:
@@ -178,7 +174,7 @@ def flow_warp(src_img, flow):
     """
     batch, height, width, _ = src_img.get_shape().as_list()
     # meshgrid(batch, height, width, False) -> [8,2,128,416]
-    # transpose -> [8,128,416,2] 
+    # transpose -> [8,128,416,2]
     tgt_pixel_coords = tf.transpose(meshgrid(batch, height, width, False),
                                     [0, 2, 3, 1])
     
@@ -186,7 +182,6 @@ def flow_warp(src_img, flow):
     output_img = bilinear_sampler(src_img, src_pixel_coords)
 
     return output_img
-
 
 def compute_rigid_flow(depth, pose, intrinsics, reverse_pose=False):
     """Compute the rigid flow from target image plane to source image
@@ -237,7 +232,6 @@ def compute_rigid_flow(depth, pose, intrinsics, reverse_pose=False):
     rigid_flow = src_pixel_coords - tgt_pixel_coords
 
     return rigid_flow
-
 
 def bilinear_sampler(imgs, coords):
     """Construct a new image by bilinear sampling from the input image.
