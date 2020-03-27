@@ -102,7 +102,9 @@ class GeoNetModel(object):
         # self.dispnet_inputs: (12 (tgt, src_1, src_2), 128, 416, 3), axis0: 0:4 tgt, 4:8 src_1, 8:12 src_2
         # self.pred_disp:
         # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
-        self.pred_disp = disp_net(opt, self.dispnet_inputs)
+        # self.delta_xyz:
+        # [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
+        self.pred_disp, self.delta_xyz = disp_net(opt, self.dispnet_inputs)
 
         if opt.scale_normalize:
             # As proposed in https://arxiv.org/abs/1712.00175, this can 
@@ -129,6 +131,10 @@ class GeoNetModel(object):
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
         for s in range(opt.num_scales):
+            # TODO: 
+            # for deltax_xyz:
+            # i=0: 0:3 -> fwd, 6:9 -> bwd
+            # i=1: 3:6 -> fwd, 9:12 -> bwd
             for i in range(opt.num_source):
                 
                 # self.pred_depth:
@@ -139,13 +145,15 @@ class GeoNetModel(object):
                 # self.pred_poses[:,1,:]: tgt->src_2
                 # fwd_rigid_flow shape: (4, 128, 416, 2)
                 fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
-                                 self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], False)
+                                 self.delta_xyz[s][:,:,:,3*(i):3*(i+1)], self.pred_poses[:,i,:], 
+                                 self.intrinsics[:,s,:,:], False)
                 
                 # backward: src_1 -> tgt, src_2 -> tgt
                 # src_1: 4:8, src_2: 8:12
                 # bwd_rigid_flow shape: (4, 128, 416, 2)
                 bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
-                                 self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], True)
+                                 self.delta_xyz[s][:,:,:,3*(i+2):3*(i+3)], self.pred_poses[:,i,:], 
+                                 self.intrinsics[:,s,:,:], True)
                 if not i:
                     fwd_rigid_flow_concat = fwd_rigid_flow
                     bwd_rigid_flow_concat = bwd_rigid_flow

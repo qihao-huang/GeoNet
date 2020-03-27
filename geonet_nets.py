@@ -15,13 +15,13 @@ FLOW_SCALING = 0.1
 def disp_net(opt, dispnet_inputs):
     is_training = opt.mode == 'train_rigid'
     if opt.dispnet_encoder == 'vgg':
-        return build_vgg(dispnet_inputs, get_disp_vgg, is_training, 'depth_net')
+        return build_vgg(opt, dispnet_inputs, get_disp_vgg, is_training, 'depth_net')
     else:
-        return build_resnet50(dispnet_inputs, get_disp_resnet50, is_training, 'depth_net')
+        return build_resnet50(opt, dispnet_inputs, get_disp_resnet50, is_training, 'depth_net')
 
 def flow_net(opt, flownet_inputs):
     is_training = opt.mode == 'train_flow'
-    return build_resnet50(flownet_inputs, get_flow, is_training, 'flow_net')
+    return build_resnet50(opt, flownet_inputs, get_flow, is_training, 'flow_net')
 
 def pose_net(opt, posenet_inputs):
     is_training = opt.mode == 'train_rigid'
@@ -70,7 +70,7 @@ def pose_net(opt, posenet_inputs):
 
             return pose_final
 
-def build_resnet50(inputs, get_pred, is_training, var_scope):
+def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
     batch_norm_params = {'is_training': is_training}
     with tf.variable_scope(var_scope) as sc:
         with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
@@ -115,6 +115,8 @@ def build_resnet50(inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv4)
             pred4 = get_pred(iconv4)                        # [12, 16, 52,  1]
             upred4  = upsample_nn(pred4, 2)                 # [12, 32, 104, 1]
+            conv_delta_xyz4 = get_delta_xyz(opt, iconv4, "conv")
+            depth_delta_xyz4 = get_delta_xyz(opt, pred4, "depth")
 
             upconv3 = upconv(iconv4,   64, 3, 2) #H/4       # [12, 32, 104, 64]
             concat3 = tf.concat([upconv3, skip2, upred4], 3)# [12, 32, 104, 129]
@@ -123,6 +125,8 @@ def build_resnet50(inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv3)             
             pred3 = get_pred(iconv3)                        # [12, 32, 104, 1]
             upred3  = upsample_nn(pred3, 2)                 # [12, 64, 208, 1]
+            conv_delta_xyz3 = get_delta_xyz(opt, iconv3, "conv")
+            depth_delta_xyz3 = get_delta_xyz(opt, pred3, "depth")
 
             upconv2 = upconv(iconv3,   32, 3, 2) #H/2       # [12, 64, 208, 32]
             concat2 = tf.concat([upconv2, skip1, upred3], 3)# [12, 64, 208, 97]
@@ -131,6 +135,8 @@ def build_resnet50(inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv2)
             pred2 = get_pred(iconv2)                        # [12, 64, 208, 1]
             upred2  = upsample_nn(pred2, 2)                 # [12, 128, 416, 1]
+            conv_delta_xyz2 = get_delta_xyz(opt, iconv2, "conv")
+            depth_delta_xyz2 = get_delta_xyz(opt, pred2, "depth")
 
             upconv1 = upconv(iconv2,  16, 3, 2) #H          # [12, 128, 416, 16]
             concat1 = tf.concat([upconv1, upred2], 3)       # [12, 128, 416, 17]
@@ -138,11 +144,22 @@ def build_resnet50(inputs, get_pred, is_training, var_scope):
 
             # calling get_disp_resnet50(iconv1)
             pred1 = get_pred(iconv1)                        # [12, 128, 416, 1]
+            conv_delta_xyz1 = get_delta_xyz(opt, iconv1, "conv")
+            depth_delta_xyz1 = get_delta_xyz(opt, pred1, "depth")
 
             # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
-            return [pred1, pred2, pred3, pred4]
+            # return [pred1, pred2, pred3, pred4]
+            pred_list = [pred1, pred2, pred3, pred4]
+            
+            mode = "conv"
+            if mode == "conv":
+                delta_xyz_list = [conv_delta_xyz1, conv_delta_xyz2, conv_delta_xyz3, conv_delta_xyz4]
+            elif mode == "depth":
+                delta_xyz_list = [depth_delta_xyz1, depth_delta_xyz2, depth_delta_xyz3, depth_delta_xyz4]
+                
+            return pred_list, delta_xyz_list
 
-def build_vgg(inputs, get_pred, is_training, var_scope):
+def build_vgg(opt, inputs, get_pred, is_training, var_scope):
     batch_norm_params = {'is_training': is_training}
     H = inputs.get_shape()[1].value
     W = inputs.get_shape()[2].value
@@ -225,6 +242,21 @@ def maxpool(x, kernel_size):
 def get_disp_vgg(x):
     disp = DISP_SCALING_VGG * slim.conv2d(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
+
+def get_delta_xyz(opt, x, mode):
+    # unstack e.g. [12,16, 512, C_in] -> [4,16, 512, 3*C_in] 
+    bs = opt.batch_size
+    restack_x = x[:bs]
+    for i in range(opt.num_source):
+        restack_x = tf.concat([restack_x, x[bs*(i+1):bs*(i+2)]], axis=3)
+
+    delta_xyz = conv(restack_x, 12, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)
+
+    # TODO: mode choose
+    if mode == "conv":
+        return DISP_SCALING_RESNET50 * delta_xyz + 0.01
+    elif mode == "depth":
+        return delta_xyz
 
 def get_disp_resnet50(x):
     # TODO: DISP_SCALING_RESNET50: scaling?
