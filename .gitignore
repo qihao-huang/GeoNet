@@ -5,7 +5,7 @@ model
 GeoNet_models_and_predictions
 predictions
 log*
-
+log
 __pycache__/
 *.py[cod]
 *$py.class

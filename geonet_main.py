@@ -1,5 +1,8 @@
 from __future__ import division
 import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
 import time
 import random
 import pprint
@@ -8,6 +11,11 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 from tensorflow.python.client import device_lib 
+print(device_lib.list_local_devices())
+
+# tf.test.is_gpu_available()
+
+# tf.test.gpu_device_name()
 
 from geonet_model import *
 from geonet_test_depth import *
@@ -24,6 +32,7 @@ flags.DEFINE_integer("num_threads",                 32,    "Number of threads fo
 flags.DEFINE_integer("img_height",                 128,    "Image height")
 flags.DEFINE_integer("img_width",                  416,    "Image width")
 flags.DEFINE_integer("seq_length",                   3,    "Sequence length for each example")
+flags.DEFINE_string("log_savedir",                      "",    "log directory in save graph and loss")
 
 ##### Training Configurations #####
 flags.DEFINE_string("checkpoint_dir",               "",    "Directory name to save the checkpoints")
@@ -81,12 +90,18 @@ def train():
         # tgt_image: (4,128,416,3)
         # src_image_stack: (4,128,416,6)
         # intrinsics: (4,4,3,3)
-        tgt_image, src_image_stack, intrinsics = loader.load_train_batch()
+        tgt_image, src_image_stack, intrinsics = loader.load_train_val_batch("train")
+        
 
         # Build Model
         print("# Build Model")
         model = GeoNetModel(opt, tgt_image, src_image_stack, intrinsics)
         loss = model.total_loss
+
+        # TODO: validation set loss
+        # val_tgt_image, val_src_image_stack, val_intrinsics = loader.load_train_val_batch("val")
+        # val_model = GeoNetModel(opt, val_tgt_image, val_src_image_stack, val_intrinsics)
+        # val_loss = val_model.total_loss
 
         # Train Op
         print('# Train Op')
@@ -137,6 +152,10 @@ def train():
         config.gpu_options.allow_growth = True
 
         with sv.managed_session(config=config) as sess:
+            writer = tf.summary.FileWriter(opt.log_savedir)
+            # writer.add_graph(tf.get_default_graph())
+            writer.add_graph(sess.graph)
+
             print('Trainable variables: ')
             for var in train_vars:
                 print(var.name)
@@ -149,7 +168,6 @@ def train():
             print("entering into steps")
             for step in range(1, opt.max_steps):
                 print("step: ", step)
-
                 fetches = {
                     "train": train_op,
                     "global_step": global_step,
@@ -158,7 +176,7 @@ def train():
 
                 if step % 100 == 0:
                     fetches["loss"] = loss
-                
+
                 results = sess.run(fetches)
                 
                 if step % 100 == 0:
@@ -166,9 +184,13 @@ def train():
                     start_time = time.time()
                     print('Iteration: [%7d] | Time: %4.4fs/iter | Loss: %.3f' \
                           % (step, time_per_iter, results["loss"]))
-                
+                    
+                    tf.summary.scalar('loss', results["loss"])
+
                 if step % opt.save_ckpt_freq == 0:
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
+
+            writer.close()
 
 def main(_):
     opt.num_source = opt.seq_length - 1 # 3-1=2 or 5-1=4

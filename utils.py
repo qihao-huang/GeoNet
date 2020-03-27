@@ -234,7 +234,7 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     
     # Convert pixel coordinates to the camera frame
     # D K^-1 P, [4, 4, 128, 416]
-    cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
+    # cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
 
     # TODO: generate new 3D points by adding delta xyz
     # [4, 3, 128, 416]

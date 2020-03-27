@@ -11,13 +11,13 @@ class DataLoader(object):
         self.opt = opt
 
     # function called by main
-    def load_train_batch(self):
-        """Load a batch of training instances.
+    def load_train_val_batch(self, mode="train"):
+        """Load a batch of training or validation instances.
         """
         opt = self.opt
 
         # Load the list of training files into queues
-        file_list = self.format_file_list(opt.dataset_dir, 'train')
+        file_list = self.format_file_list(opt.dataset_dir, mode)
 
         # file_list['image_file_list']
         # '/userhome/34/h3567721/dataset/kitti/kitti_raw_eigen/2011_09_30_drive_0034_sync_03/0000000558.jpg'
@@ -72,17 +72,27 @@ class DataLoader(object):
             tf.train.shuffle_batch([src_image_stack, tgt_image, intrinsics], opt.batch_size, 
                                     capacity, min_after_dequeue, opt.num_threads, seed)
 
-        # Data augmentation
-        image_all = tf.concat([tgt_image, src_image_stack], axis=3)
-        
-        image_all, intrinsics = self.data_augmentation(
-            image_all, intrinsics, opt.img_height, opt.img_width)
+        # TODO: val no shuffle?
+        # src_image_stack, tgt_image, intrinsics = \
+        #     tf.train.batch([src_image_stack, tgt_image, intrinsics], opt.batch_size, 
+        #                     opt.num_threads,capacity)
 
-        tgt_image = image_all[:, :, :, :3] # (4,128,416,3)
-        src_image_stack = image_all[:, :, :, 3:] # (4,128,416,6)
+        if mode == "train":
+            # Data augmentation
+            print("load_train_val_batch: Doing data augmentation")
+            image_all = tf.concat([tgt_image, src_image_stack], axis=3)
+            
+            image_all, intrinsics = self.data_augmentation(
+                image_all, intrinsics, opt.img_height, opt.img_width)
 
-        # intrinsics_mscale (4,4,3,3)
-        intrinsics = self.get_multi_scale_intrinsics(intrinsics, opt.num_scales)
+            tgt_image = image_all[:, :, :, :3] # (4,128,416,3)
+            src_image_stack = image_all[:, :, :, 3:] # (4,128,416,6)
+
+            # intrinsics_mscale (4,4,3,3)
+            intrinsics = self.get_multi_scale_intrinsics(intrinsics, opt.num_scales)
+        else:
+            print("load_train_val_batch: No augmentation in evalution")
+            pass
 
         return tgt_image, src_image_stack, intrinsics
 

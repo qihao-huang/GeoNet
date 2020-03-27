@@ -10,6 +10,7 @@ else
     conda activate geonet-v  
     echo "Setting geonet-v, Python 2.7, Tensorflow 1.14"
 fi
+
 export CUDA_VISIBLE_DEVICES=0
 
 user_path="/userhome/34/h3567721"
@@ -22,4 +23,5 @@ python geonet_main.py \
     --learning_rate=0.0002 \
     --seq_length=3 \
     --batch_size=4 \
-    --max_steps=350000
+    --max_steps=350000 \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log"
