@@ -115,18 +115,16 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv4)
             pred4 = get_pred(iconv4)                        # [12, 16, 52,  1]
             upred4  = upsample_nn(pred4, 2)                 # [12, 32, 104, 1]
-            conv_delta_xyz4 = get_delta_xyz(opt, iconv4, "conv")
-            depth_delta_xyz4 = get_delta_xyz(opt, pred4, "depth")
+            conv_delta_xyz4 = get_delta_xyz(opt, iconv4)
 
-            upconv3 = upconv(iconv4,   64, 3, 2) #H/4       # [12, 32, 104, 64]
+            upconv3 = upconv(iconv4,   64, 3, 2) #H/4       # [12, 32, 104, 64] 
             concat3 = tf.concat([upconv3, skip2, upred4], 3)# [12, 32, 104, 129]
             iconv3  = conv(concat3,    64, 3, 1)            # [12, 32, 104, 64]
 
             # calling get_disp_resnet50(iconv3)             
             pred3 = get_pred(iconv3)                        # [12, 32, 104, 1]
             upred3  = upsample_nn(pred3, 2)                 # [12, 64, 208, 1]
-            conv_delta_xyz3 = get_delta_xyz(opt, iconv3, "conv")
-            depth_delta_xyz3 = get_delta_xyz(opt, pred3, "depth")
+            conv_delta_xyz3 = get_delta_xyz(opt, iconv3)
 
             upconv2 = upconv(iconv3,   32, 3, 2) #H/2       # [12, 64, 208, 32]
             concat2 = tf.concat([upconv2, skip1, upred3], 3)# [12, 64, 208, 97]
@@ -135,8 +133,7 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv2)
             pred2 = get_pred(iconv2)                        # [12, 64, 208, 1]
             upred2  = upsample_nn(pred2, 2)                 # [12, 128, 416, 1]
-            conv_delta_xyz2 = get_delta_xyz(opt, iconv2, "conv")
-            depth_delta_xyz2 = get_delta_xyz(opt, pred2, "depth")
+            conv_delta_xyz2 = get_delta_xyz(opt, iconv2)
 
             upconv1 = upconv(iconv2,  16, 3, 2) #H          # [12, 128, 416, 16]
             concat1 = tf.concat([upconv1, upred2], 3)       # [12, 128, 416, 17]
@@ -144,18 +141,12 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
 
             # calling get_disp_resnet50(iconv1)
             pred1 = get_pred(iconv1)                        # [12, 128, 416, 1]
-            conv_delta_xyz1 = get_delta_xyz(opt, iconv1, "conv")
-            depth_delta_xyz1 = get_delta_xyz(opt, pred1, "depth")
+            conv_delta_xyz1 = get_delta_xyz(opt, iconv1)
 
             # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
-            # return [pred1, pred2, pred3, pred4]
             pred_list = [pred1, pred2, pred3, pred4]
             
-            mode = "conv"
-            if mode == "conv":
-                delta_xyz_list = [conv_delta_xyz1, conv_delta_xyz2, conv_delta_xyz3, conv_delta_xyz4]
-            elif mode == "depth":
-                delta_xyz_list = [depth_delta_xyz1, depth_delta_xyz2, depth_delta_xyz3, depth_delta_xyz4]
+            delta_xyz_list = [conv_delta_xyz1, conv_delta_xyz2, conv_delta_xyz3, conv_delta_xyz4]
                 
             return pred_list, delta_xyz_list
 
@@ -244,24 +235,21 @@ def get_disp_vgg(x):
     return disp
 
 def get_delta_xyz(opt, x, mode):
-    # unstack e.g. [12,16, 512, C_in] -> [4,16, 512, 3*C_in] 
+    # unstack e.g. [12, 16, 52, C_in] -> [4,16, 52, 3*C_in] 
     bs = opt.batch_size
     restack_x = x[:bs]
     for i in range(opt.num_source):
         restack_x = tf.concat([restack_x, x[bs*(i+1):bs*(i+2)]], axis=3)
 
-    delta_xyz = conv(restack_x, 12, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)
+    # FIXME: 
+    # activation_fc: not sigmoid, 
+    # check delta: - +, check, only depth is +
+    # check pose: - + follow optical flow
+    delta_xyz = conv(restack_x, 12, 3, 1, activation_fn=None, normalizer_fn=None)
 
-    # TODO: mode choose
-    if mode == "conv":
-        return DISP_SCALING_RESNET50 * delta_xyz + 0.01
-    elif mode == "depth":
-        return delta_xyz
+    return DISP_SCALING_RESNET50 * delta_xyz + 0.01
 
 def get_disp_resnet50(x):
-    # TODO: DISP_SCALING_RESNET50: scaling?
-    # TODO: why sigmoid
-    # TODO: 0.01?
     disp = DISP_SCALING_RESNET50 * conv(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
 
@@ -288,7 +276,6 @@ def upconv(x, num_out_layers, kernel_size, scale):
     return cnv
 
 def resconv(x, num_layers, stride):
-    # TODO: bugs!
     # Actually here exists a bug: tf.shape(x)[3] != num_layers is always true,
     # but we preserve it here for consistency with Godard's implementation.
     do_proj = tf.shape(x)[3] != num_layers or stride == 2
@@ -300,6 +287,7 @@ def resconv(x, num_layers, stride):
         shortcut = conv(x, 4 * num_layers, 1, stride, None)
     else:
         shortcut = x
+    
     return tf.nn.relu(conv3 + shortcut)
 
 def resblock(x, num_layers, num_blocks):

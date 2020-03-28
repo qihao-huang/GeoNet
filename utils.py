@@ -111,19 +111,27 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
 def cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True):
     batch, _, height, width = cam_coords.get_shape().as_list()
 
-    # TODO: reshape? right?
-    # delta_xyz [4, 128, 416, 3] -> [4, 3, 128*416]
+    # FIXME: transpose
+    # [0 , 1, 2, 3 ] -> [0, 3, 1, 2]
+    # delta_xyz [4, 128, 416, 3] -> [4, 3, 128, 316]
+    delta_xyz = tf.transpose(delta_xyz[:, :, :, :], [0, 3, 1, 2])
+
+    # [4, 3, 128*416]
     delta_xyz = tf.reshape(delta_xyz, [batch, 3, -1])
     
     # cam_coords [4,3,128,416] -> [4, 3, 128*416]
     cam_coords = tf.reshape(cam_coords, [batch, 3, -1])
 
+    # x + delta_x, y + delta_y, z + delta_z
+    # cam_coords_xyz: [4, 3, 128*416]
     cam_coords_xyz = tf.add(cam_coords, delta_xyz)
 
     if is_homogeneous:
         ones = tf.ones([batch, 1, height*width])
         cam_coords_xyz = tf.concat([cam_coords_xyz, ones], axis=1)
 
+    #  if homo: cam_coords_xyz [4, 4, 128*416] -> [4, 4, 128, 416]
+    #  else: cam_coords_xyz [4, 3, 128*416] -> [4, 3, 128, 416]
     cam_coords_xyz = tf.reshape(cam_coords_xyz, [batch, -1, height, width])
 
     return cam_coords_xyz
@@ -227,9 +235,16 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     
     # Construct pixel grid coordinates
     # [4, 3, 128, 416]
+    # for batch
+    #   for all xyz
+    #       for h 0->128
+    #           for w 0->416
+
+    # [4, 2, 128, 416]
     pixel_coords = meshgrid(batch, height, width)
 
     # [4, 128, 416, 2]
+    # TODO: why 2?
     tgt_pixel_coords = tf.transpose(pixel_coords[:, :2, :, :], [0, 2, 3, 1])
     
     # Convert pixel coordinates to the camera frame

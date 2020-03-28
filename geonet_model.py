@@ -94,16 +94,20 @@ class GeoNetModel(object):
             # >>> a[0:4]            # [1, 2, 3, 4]
             # >>> a[4:8]            # [5, 6, 7, 8]
             # >>> a[8:12]           # [9, 10, 11, 12]
-            self.dispnet_inputs = self.tgt_image
+
+            self.dispnet_inputs = self.tgt_image # [4, 128, 416, 3]
             for i in range(opt.num_source):
                 self.dispnet_inputs = tf.concat([self.dispnet_inputs, self.src_image_stack[:,:,:,3*i:3*(i+1)]], axis=0)
         
         # build dispnet
         # self.dispnet_inputs: (12 (tgt, src_1, src_2), 128, 416, 3), axis0: 0:4 tgt, 4:8 src_1, 8:12 src_2
+
         # self.pred_disp:
         # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
+
         # self.delta_xyz:
         # [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
+
         self.pred_disp, self.delta_xyz = disp_net(opt, self.dispnet_inputs)
 
         if opt.scale_normalize:
@@ -131,14 +135,14 @@ class GeoNetModel(object):
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
         for s in range(opt.num_scales):
-            # TODO: 
-            # for deltax_xyz:
+            # TODO: for deltax_xyz:
             # i=0: 0:3 -> fwd, 6:9 -> bwd
             # i=1: 3:6 -> fwd, 9:12 -> bwd
             for i in range(opt.num_source):
                 
                 # self.pred_depth:
                 # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
+
                 # self.pred_depth[s(0:3)][:bs], 0:4: the whole batch of tgt
                 # tf.squeeze(): (4, 128, 416, 1) -> (4, 128, 416) 
                 # self.pred_poses[:,0,:]: tgt->src_1
@@ -150,6 +154,7 @@ class GeoNetModel(object):
                 
                 # backward: src_1 -> tgt, src_2 -> tgt
                 # src_1: 4:8, src_2: 8:12
+                
                 # bwd_rigid_flow shape: (4, 128, 416, 2)
                 bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
                                  self.delta_xyz[s][:,:,:,3*(i+2):3*(i+3)], self.pred_poses[:,i,:], 

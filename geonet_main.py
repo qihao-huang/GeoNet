@@ -14,7 +14,6 @@ from tensorflow.python.client import device_lib
 print(device_lib.list_local_devices())
 
 # tf.test.is_gpu_available()
-
 # tf.test.gpu_device_name()
 
 from geonet_model import *
@@ -91,7 +90,6 @@ def train():
         # src_image_stack: (4,128,416,6)
         # intrinsics: (4,4,3,3)
         tgt_image, src_image_stack, intrinsics = loader.load_train_val_batch("train")
-        
 
         # Build Model
         print("# Build Model")
