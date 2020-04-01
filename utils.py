@@ -4,6 +4,7 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
+
 def euler2mat(z, y, x):
     """Converts euler angles to rotation matrix
      TODO: remove the dimension for 'N' (deprecated for converting all source
@@ -52,8 +53,9 @@ def euler2mat(z, y, x):
     xmat = tf.concat([rotx_1, rotx_2, rotx_3], axis=2)
 
     rotMat = tf.matmul(tf.matmul(xmat, ymat), zmat)
-    
+
     return rotMat
+
 
 def pose_vec2mat(vec):
     """Converts 6DoF parameters to transformation matrix
@@ -76,6 +78,7 @@ def pose_vec2mat(vec):
     transform_mat = tf.concat([transform_mat, filler], axis=1)
 
     return transform_mat
+
 
 def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
     """Transforms coordinates in the pixel frame to the camera frame.
@@ -108,6 +111,7 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
 
     return cam_coords
 
+
 def cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True):
     batch, _, height, width = cam_coords.get_shape().as_list()
 
@@ -118,7 +122,7 @@ def cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True):
 
     # [4, 3, 128*416]
     delta_xyz = tf.reshape(delta_xyz, [batch, 3, -1])
-    
+
     # cam_coords [4,3,128,416] -> [4, 3, 128*416]
     cam_coords = tf.reshape(cam_coords, [batch, 3, -1])
 
@@ -136,8 +140,8 @@ def cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True):
 
     return cam_coords_xyz
 
+
 def cam2pixel(cam_coords, proj):
-    
     """Transforms coordinates in a camera frame to the pixel frame.
 
     Args:
@@ -157,11 +161,12 @@ def cam2pixel(cam_coords, proj):
     z_u = tf.slice(unnormalized_pixel_coords, [0, 2, 0], [-1, 1, -1])
     x_n = x_u / (z_u + 1e-10)
     y_n = y_u / (z_u + 1e-10)
-    
+
     pixel_coords = tf.concat([x_n, y_n], axis=1)
     pixel_coords = tf.reshape(pixel_coords, [batch, 2, height, width])
 
     return tf.transpose(pixel_coords, perm=[0, 2, 3, 1])
+
 
 def meshgrid(batch, height, width, is_homogeneous=True):
     """Construct a 2D meshgrid.
@@ -187,10 +192,11 @@ def meshgrid(batch, height, width, is_homogeneous=True):
         coords = tf.stack([x_t, y_t, ones], axis=0)
     else:
         coords = tf.stack([x_t, y_t], axis=0)
-    
+
     coords = tf.tile(tf.expand_dims(coords, 0), [batch, 1, 1, 1])
 
     return coords
+
 
 def flow_warp(src_img, flow):
     """ inverse warp a source image to the target image plane based on flow field
@@ -205,11 +211,12 @@ def flow_warp(src_img, flow):
     # transpose -> [8,128,416,2]
     tgt_pixel_coords = tf.transpose(meshgrid(batch, height, width, False),
                                     [0, 2, 3, 1])
-    
+
     src_pixel_coords = tgt_pixel_coords + flow
     output_img = bilinear_sampler(src_img, src_pixel_coords)
 
     return output_img
+
 
 def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     """Compute the rigid flow from target image plane to source image
@@ -229,10 +236,10 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     # Convert pose vector to matrix
     # (4,6) -> (4,4,4)
     pose = pose_vec2mat(pose)
-    
+
     if reverse_pose:
         pose = tf.matrix_inverse(pose)
-    
+
     # Construct pixel grid coordinates
     # [4, 3, 128, 416]
     # for batch
@@ -246,36 +253,39 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     # [4, 128, 416, 2]
     # TODO: why 2?
     tgt_pixel_coords = tf.transpose(pixel_coords[:, :2, :, :], [0, 2, 3, 1])
-    
+
     # Convert pixel coordinates to the camera frame
     # D K^-1 P, [4, 4, 128, 416]
     # cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
 
     # TODO: generate new 3D points by adding delta xyz
     # [4, 3, 128, 416]
-    cam_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
+    cam_coords = pixel2cam(depth, pixel_coords,
+                           intrinsics, is_homogeneous=False)
 
     # cam_coords_delta: [4, 4, 128, 416], delta_xyz: [4, 128, 416, 3]
-    cam_coords_delta = cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True)
+    cam_coords_delta = cam_add_delta(
+        cam_coords, delta_xyz, is_homogeneous=True)
 
     # Construct a 4x4 intrinsic matrix
     filler = tf.constant([0.0, 0.0, 0.0, 1.0], shape=[1, 1, 4])
     filler = tf.tile(filler, [batch, 1, 1])
-    
+
     intrinsics = tf.concat([intrinsics, tf.zeros([batch, 3, 1])], axis=2)
     intrinsics = tf.concat([intrinsics, filler], axis=1)
-    
+
     # Get a 4x4 transformation matrix from 'target' camera frame to 'source' pixel frame.
     # K [R|t]
-    proj_tgt_cam_to_src_pixel = tf.matmul(intrinsics, pose) 
+    proj_tgt_cam_to_src_pixel = tf.matmul(intrinsics, pose)
 
     # K [R|t] D K^-1 P  - P
     # src_pixel_coords = cam2pixel(cam_coords, proj_tgt_cam_to_src_pixel)
     src_pixel_coords = cam2pixel(cam_coords_delta, proj_tgt_cam_to_src_pixel)
-    
+
     rigid_flow = src_pixel_coords - tgt_pixel_coords
 
     return rigid_flow
+
 
 def bilinear_sampler(imgs, coords):
     """Construct a new image by bilinear sampling from the input image.
@@ -292,7 +302,8 @@ def bilinear_sampler(imgs, coords):
       A new sampled image [batch, height_t, width_t, channels]
     """
     def _repeat(x, n_repeats):
-        rep = tf.transpose(tf.expand_dims(tf.ones(shape=tf.stack([n_repeats,])), 1), [1, 0])
+        rep = tf.transpose(tf.expand_dims(
+            tf.ones(shape=tf.stack([n_repeats, ])), 1), [1, 0])
         rep = tf.cast(rep, 'float32')
         x = tf.matmul(tf.reshape(x, (-1, 1)), rep)
         return tf.reshape(x, [-1])

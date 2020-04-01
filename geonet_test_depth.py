@@ -5,6 +5,7 @@ import os
 import PIL.Image as pil
 from geonet_model import *
 
+
 def test_depth(opt):
     ##### load testing list #####
     with open('data/kitti/test_files_%s.txt' % opt.depth_test_split, 'r') as f:
@@ -17,10 +18,10 @@ def test_depth(opt):
 
     ##### init #####
     input_uint8 = tf.placeholder(tf.uint8, [opt.batch_size,
-                opt.img_height, opt.img_width, 3], name='raw_input')
+                                            opt.img_height, opt.img_width, 3], name='raw_input')
 
     model = GeoNetModel(opt, input_uint8, None, None)
-    fetches = { "depth": model.pred_depth[0] }
+    fetches = {"depth": model.pred_depth[0]}
 
     saver = tf.train.Saver([var for var in tf.model_variables()])
     config = tf.ConfigProto()
@@ -43,7 +44,8 @@ def test_depth(opt):
                     break
                 fh = open(test_files[idx], 'r')
                 raw_im = pil.open(fh)
-                scaled_im = raw_im.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
+                scaled_im = raw_im.resize(
+                    (opt.img_width, opt.img_height), pil.ANTIALIAS)
                 inputs[b] = np.array(scaled_im)
 
             pred = sess.run(fetches, feed_dict={input_uint8: inputs})
@@ -51,6 +53,7 @@ def test_depth(opt):
                 idx = t + b
                 if idx >= len(test_files):
                     break
-                pred_all.append(pred['depth'][b,:,:,0])
+                pred_all.append(pred['depth'][b, :, :, 0])
 
-        np.save(opt.output_dir + '/' + os.path.basename(opt.init_ckpt_file), pred_all)
+        np.save(opt.output_dir + '/' +
+                os.path.basename(opt.init_ckpt_file), pred_all)

@@ -234,7 +234,7 @@ def get_disp_vgg(x):
     disp = DISP_SCALING_VGG * slim.conv2d(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
 
-def get_delta_xyz(opt, x, mode):
+def get_delta_xyz(opt, x):
     # unstack e.g. [12, 16, 52, C_in] -> [4,16, 52, 3*C_in] 
     bs = opt.batch_size
     restack_x = x[:bs]
