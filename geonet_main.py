@@ -16,7 +16,8 @@ from geonet_test_flow import *
 from data_loader import DataLoader
 
 flags = tf.app.flags
-flags.DEFINE_boolean("delta_mode",                False, "whether taining the delta xyz")
+flags.DEFINE_boolean("save_intermedia",                False, "whether to save the intermediate vars")
+flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
 flags.DEFINE_string("mode",                         "", "(train_rigid, train_flow) or (test_depth, test_pose, test_flow)")
 flags.DEFINE_string("dataset_dir",                  "", "Dataset directory")
 flags.DEFINE_string("init_ckpt_file",             None, "Specific checkpoint file to initialize from")
@@ -92,6 +93,8 @@ def train():
         print("# Build Model")
         model = GeoNetModel(opt, tgt_image, src_image_stack, intrinsics)
         loss = model.total_loss
+        tf.summary.scalar("loss", loss)
+        merged_summary_op = tf.summary.merge_all()
 
         # TODO: validation set loss
         # val_tgt_image, val_src_image_stack, val_intrinsics = loader.load_train_val_batch("val")
@@ -135,6 +138,7 @@ def train():
         saver = tf.train.Saver([var for var in tf.model_variables()] +
                                [global_step],
                                max_to_keep=opt.max_to_keep)
+                               # 20 files
 
         # Session
         print("# Session")
@@ -175,19 +179,23 @@ def train():
                     fetches["loss"] = loss
 
                 results = sess.run(fetches)
+                
+                if opt.save_intermedia:
+                    save_tmp_name = str(time.time()) # '1585880463.4654446'
+                    np.save(os.path.join(opt.log_savedir, "depth", save_tmp_name), results["depth"])
+                    np.save(os.path.join(opt.log_savedir, "pose", save_tmp_name), results["pose"])
 
-                save_tmp_name = str(time.time()) # '1585880463.4654446'
-                np.save(os.path.join(opt.log_savedir, "depth", save_tmp_name), results["depth"])
-                np.save(os.path.join(opt.log_savedir, "pose", save_tmp_name), results["pose"])
-
-                if opt.delta_mode:
-                    np.save(os.path.join(opt.log_savedir, "delta", save_tmp_name), results["delta_xyz"])
+                    if opt.delta_mode:
+                        np.save(os.path.join(opt.log_savedir, "delta", save_tmp_name), results["delta_xyz"])
                 
                 if step % 100 == 0:
                     time_per_iter = (time.time() - start_time) / 100
                     start_time = time.time()
                     print('Iteration: [%7d] | Time: %4.4fs/iter | Loss: %.3f'
                           % (step, time_per_iter, results["loss"]))
+
+                    merged_summary = sess.run(merged_summary_op)
+                    sv.summary_computed(sess, merged_summary, global_step=step)
 
                 if step % opt.save_ckpt_freq == 0:
                     saver.save(sess, os.path.join(
