@@ -14,12 +14,14 @@ def test_depth(opt):
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
 
+    # print("all test_files: ", test_files)
     print("test_files: ", len(test_files))
 
     ##### init #####
     input_uint8 = tf.placeholder(tf.uint8, [opt.batch_size,
                                             opt.img_height, opt.img_width, 3], name='raw_input')
 
+    # GeoNetModel(opt, tgt_image, src_image_stack, intrinsics):
     model = GeoNetModel(opt, input_uint8, None, None)
     fetches = {"depth": model.pred_depth[0]}
 

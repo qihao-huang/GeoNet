@@ -18,7 +18,7 @@ python kitti_eval/generate_multiview_extension.py \
 python geonet_main.py \
     --mode=test_flow \
     --dataset_dir=$user_path"/dataset/kitti/flow/data_scene_flow_mv_dump_test_data/" \
-    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint_flow/model-395000" \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/checkpoint_flow/model-395000" \
     --flownet_type=residual \
     --batch_size=1 \
     --output_dir=$user_path"/projects/Depth/GeoNet/predictions/test_flow/"

@@ -251,21 +251,23 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     pixel_coords = meshgrid(batch, height, width)
 
     # [4, 128, 416, 2]
-    # TODO: why 2?
     tgt_pixel_coords = tf.transpose(pixel_coords[:, :2, :, :], [0, 2, 3, 1])
 
     # Convert pixel coordinates to the camera frame
     # D K^-1 P, [4, 4, 128, 416]
-    # cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
 
-    # TODO: generate new 3D points by adding delta xyz
-    # [4, 3, 128, 416]
-    cam_coords = pixel2cam(depth, pixel_coords,
-                           intrinsics, is_homogeneous=False)
+    if delta_xyz == None:
+        cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
 
-    # cam_coords_delta: [4, 4, 128, 416], delta_xyz: [4, 128, 416, 3]
-    cam_coords_delta = cam_add_delta(
-        cam_coords, delta_xyz, is_homogeneous=True)
+    else:
+        # TODO: generate new 3D points by adding delta xyz
+        # [4, 3, 128, 416]
+        cam_coords = pixel2cam(depth, pixel_coords,
+                            intrinsics, is_homogeneous=False)
+
+        # cam_coords_delta: [4, 4, 128, 416], delta_xyz: [4, 128, 416, 3]
+        cam_coords_delta = cam_add_delta(
+            cam_coords, delta_xyz, is_homogeneous=True)
 
     # Construct a 4x4 intrinsic matrix
     filler = tf.constant([0.0, 0.0, 0.0, 1.0], shape=[1, 1, 4])
@@ -279,8 +281,10 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     proj_tgt_cam_to_src_pixel = tf.matmul(intrinsics, pose)
 
     # K [R|t] D K^-1 P  - P
-    # src_pixel_coords = cam2pixel(cam_coords, proj_tgt_cam_to_src_pixel)
-    src_pixel_coords = cam2pixel(cam_coords_delta, proj_tgt_cam_to_src_pixel)
+    if delta_xyz == None:
+        src_pixel_coords = cam2pixel(cam_coords, proj_tgt_cam_to_src_pixel)
+    else:
+        src_pixel_coords = cam2pixel(cam_coords_delta, proj_tgt_cam_to_src_pixel)
 
     rigid_flow = src_pixel_coords - tgt_pixel_coords
 

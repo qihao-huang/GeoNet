@@ -8,6 +8,11 @@ import numpy as np
 import argparse
 from depth_evaluation_utils import *
 
+# python kitti_eval/eval_depth.py \
+#     --split=eigen \
+#     --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
+#     --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_depth/model-240000.npy"
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--split", type=str, default='eigen', help='eigen or stereo split')
 parser.add_argument("--kitti_dir", type=str, help='Path to the KITTI dataset directory')
@@ -37,6 +42,7 @@ def convert_disps_to_depths_stereo(gt_disparities, pred_depths):
 
         gt_depths.append(gt_depth)
         pred_depths_resized.append(pred_depth)
+    
     return gt_depths, pred_depths_resized, pred_disparities_resized
 
 def main():
@@ -70,7 +76,8 @@ def main():
     else:
         num_test = 200
         gt_disparities = load_gt_disp_kitti(args.kitti_dir)
-        gt_depths, pred_depths, pred_disparities_resized = convert_disps_to_depths_stereo(gt_disparities, pred_depths)
+        gt_depths, pred_depths, pred_disparities_resized = \
+            convert_disps_to_depths_stereo(gt_disparities, pred_depths)
 
     rms     = np.zeros(num_test, np.float32)
     log_rms = np.zeros(num_test, np.float32)

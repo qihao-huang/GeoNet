@@ -8,7 +8,7 @@ user_path="/userhome/34/h3567721"
 python geonet_main.py \
     --mode=test_pose \
     --dataset_dir=$user_path"/dataset/kitti/odometry/dataset/" \
-    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint_pose/model-345000" \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/checkpoint_pose/model-345000" \
     --batch_size=1 \
     --seq_length=5 \
     --pose_test_seq=9 \

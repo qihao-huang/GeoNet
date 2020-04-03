@@ -115,7 +115,8 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv4)
             pred4 = get_pred(iconv4)                        # [12, 16, 52,  1]
             upred4  = upsample_nn(pred4, 2)                 # [12, 32, 104, 1]
-            conv_delta_xyz4 = get_delta_xyz(opt, iconv4)
+            if opt.delta_mode:
+                conv_delta_xyz4 = get_delta_xyz(opt, iconv4)
 
             upconv3 = upconv(iconv4,   64, 3, 2) #H/4       # [12, 32, 104, 64] 
             concat3 = tf.concat([upconv3, skip2, upred4], 3)# [12, 32, 104, 129]
@@ -124,7 +125,8 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv3)             
             pred3 = get_pred(iconv3)                        # [12, 32, 104, 1]
             upred3  = upsample_nn(pred3, 2)                 # [12, 64, 208, 1]
-            conv_delta_xyz3 = get_delta_xyz(opt, iconv3)
+            if opt.delta_mode:
+                conv_delta_xyz3 = get_delta_xyz(opt, iconv3)
 
             upconv2 = upconv(iconv3,   32, 3, 2) #H/2       # [12, 64, 208, 32]
             concat2 = tf.concat([upconv2, skip1, upred3], 3)# [12, 64, 208, 97]
@@ -133,7 +135,8 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv2)
             pred2 = get_pred(iconv2)                        # [12, 64, 208, 1]
             upred2  = upsample_nn(pred2, 2)                 # [12, 128, 416, 1]
-            conv_delta_xyz2 = get_delta_xyz(opt, iconv2)
+            if opt.delta_mode:
+                conv_delta_xyz2 = get_delta_xyz(opt, iconv2)
 
             upconv1 = upconv(iconv2,  16, 3, 2) #H          # [12, 128, 416, 16]
             concat1 = tf.concat([upconv1, upred2], 3)       # [12, 128, 416, 17]
@@ -141,14 +144,17 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
 
             # calling get_disp_resnet50(iconv1)
             pred1 = get_pred(iconv1)                        # [12, 128, 416, 1]
-            conv_delta_xyz1 = get_delta_xyz(opt, iconv1)
+            if opt.delta_mode:
+                conv_delta_xyz1 = get_delta_xyz(opt, iconv1)
 
             # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
             pred_list = [pred1, pred2, pred3, pred4]
-            
-            delta_xyz_list = [conv_delta_xyz1, conv_delta_xyz2, conv_delta_xyz3, conv_delta_xyz4]
-                
-            return pred_list, delta_xyz_list
+
+            if opt.delta_mode:
+                delta_xyz_list = [conv_delta_xyz1, conv_delta_xyz2, conv_delta_xyz3, conv_delta_xyz4]
+                return pred_list, delta_xyz_list
+            else:
+                return pred_list
 
 def build_vgg(opt, inputs, get_pred, is_training, var_scope):
     batch_norm_params = {'is_training': is_training}

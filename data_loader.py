@@ -26,6 +26,7 @@ class DataLoader(object):
         # file_list['cam_file_list']
         # '/userhome/34/h3567721/dataset/kitti/kitti_raw_eigen/2011_09_30_drive_0034_sync_03/0000000558_cam.txt'
 
+        # tensorflow.python.ops.data_flow_ops.FIFOQueue
         image_paths_queue = tf.train.string_input_producer(
             file_list['image_file_list'], shuffle=False)
         cam_paths_queue = tf.train.string_input_producer(
@@ -69,14 +70,16 @@ class DataLoader(object):
         # src_image_stack: (4,128,416,6)
         # tgt_image: (4,128,416,3)
         # intrinsics: (4,3,3)
-        src_image_stack, tgt_image, intrinsics = \
-            tf.train.shuffle_batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
-                                   capacity, min_after_dequeue, opt.num_threads, seed)
 
-        # TODO: val no shuffle?
-        # src_image_stack, tgt_image, intrinsics = \
-        #     tf.train.batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
-        #                     opt.num_threads,capacity)
+        if mode == "train":
+            src_image_stack, tgt_image, intrinsics = \
+                tf.train.shuffle_batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
+                                    capacity, min_after_dequeue, opt.num_threads, seed)
+        else:
+            # TODO: val no shuffle?
+            src_image_stack, tgt_image, intrinsics = \
+                tf.train.batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
+                                opt.num_threads,capacity)
 
         if mode == "train":
             # Data augmentation

@@ -1,5 +1,5 @@
 from __future__ import division
-import flowlib as fl
+
 import tensorflow as tf
 import numpy as np
 import os
@@ -9,7 +9,7 @@ from geonet_model import *
 from data_loader import DataLoader
 import sys
 sys.path.insert(0, './kitti_eval/flow_tool/')
-
+import flowlib as fl
 
 def test_flow(opt):
 
