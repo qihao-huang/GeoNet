@@ -100,7 +100,9 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
     pixel_coords = tf.reshape(pixel_coords, [batch, 3, -1])
 
     # [4,3,53248]
-    cam_coords = tf.matmul(tf.matrix_inverse(intrinsics), pixel_coords) * depth
+    # NOTE: tg.matrix_inverse is deprecated.
+    # cam_coords = tf.matmul(tf.matrix_inverse(intrinsics), pixel_coords) * depth
+    cam_coords = tf.matmul(tf.linalg.inv(intrinsics), pixel_coords) * depth
 
     if is_homogeneous:
         ones = tf.ones([batch, 1, height*width])
@@ -238,7 +240,8 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     pose = pose_vec2mat(pose)
 
     if reverse_pose:
-        pose = tf.matrix_inverse(pose)
+        # pose = tf.matrix_inverse(pose)
+        pose = tf.linalg.inv(pose)
 
     # Construct pixel grid coordinates
     # [4, 3, 128, 416]
@@ -258,16 +261,15 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
 
     if delta_xyz == None:
         cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
-
     else:
         # TODO: generate new 3D points by adding delta xyz
         # [4, 3, 128, 416]
-        cam_coords = pixel2cam(depth, pixel_coords,
-                            intrinsics, is_homogeneous=False)
+        cam_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
+
+        # TODO: add a theshold to delta xyz
 
         # cam_coords_delta: [4, 4, 128, 416], delta_xyz: [4, 128, 416, 3]
-        cam_coords_delta = cam_add_delta(
-            cam_coords, delta_xyz, is_homogeneous=True)
+        cam_coords_delta = cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True)
 
     # Construct a 4x4 intrinsic matrix
     filler = tf.constant([0.0, 0.0, 0.0, 1.0], shape=[1, 1, 4])

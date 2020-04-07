@@ -95,7 +95,7 @@ class GeoNetModel(object):
         # self.delta_xyz:     [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
 
         # build dispnet:
-        if is_training and opt.delta_mode:
+        if is_training and opt.delta_mode or opt.mode == "test_depth_delta":
             self.pred_disp, self.delta_xyz = disp_net(opt, self.dispnet_inputs)
         else:
             self.pred_disp = disp_net(opt, self.dispnet_inputs)
@@ -333,7 +333,7 @@ class GeoNetModel(object):
                                  self.noc_masks_src[s]) / tf.reduce_sum(self.noc_masks_src[s]))
 
         # TODO: regularization_loss ?
-        regularization_loss = tf.add_n(tf.losses.get_regularization_losses())
+        regularization_loss = tf.add_n(tf.compat.v1.losses.get_regularization_losses())
         self.total_loss = 0  # regularization_loss
         if opt.mode == 'train_rigid':
             # rw + ds
@@ -391,7 +391,7 @@ class GeoNetModel(object):
                 # tmp = tf.image.resize_area(img, [nh, nw])
                 # print("tmp shape: ", tmp.get_shape().as_list())
                 # scaled_imgs.append(tmp)
-                scaled_imgs.append(tf.image.resize_area(img, [nh, nw]))
+                scaled_imgs.append(tf.compat.v1.image.resize_area(img, [nh, nw]))
             
             return scaled_imgs
 

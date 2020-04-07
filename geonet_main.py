@@ -11,12 +11,13 @@ import tensorflow.contrib.slim as slim
 
 from geonet_model import *
 from geonet_test_depth import *
+from geonet_test_depth_detla import *
 from geonet_test_pose import *
 from geonet_test_flow import *
 from data_loader import DataLoader
 
 flags = tf.app.flags
-flags.DEFINE_boolean("save_intermedia",                False, "whether to save the intermediate vars")
+flags.DEFINE_boolean("save_intermedia",           False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
 flags.DEFINE_string("mode",                         "", "(train_rigid, train_flow) or (test_depth, test_pose, test_flow)")
 flags.DEFINE_string("dataset_dir",                  "", "Dataset directory")
@@ -64,24 +65,26 @@ flags.DEFINE_boolean("add_posenet",    None,    "add configuration")
 
 opt = flags.FLAGS
 
+def make_dir(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
 def train():
     seed = 8964
-    tf.set_random_seed(seed)
+    tf.compat.v1.set_random_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
+    print("\x1b[6;30;42m" + "# flags" + "\x1b[0m")
     pp = pprint.PrettyPrinter()
     pp.pprint(flags.FLAGS.__flags)
 
-    if not os.path.exists(opt.checkpoint_dir):
-        os.makedirs(opt.checkpoint_dir)
-
-    if not os.path.exists(opt.log_savedir):
-        os.makedirs(opt.log_savedir)
+    make_dir(opt.checkpoint_dir)
+    make_dir(opt.log_savedir)
 
     with tf.Graph().as_default():
         # Data Loader
-        print("# Data Loader")
+        print("\x1b[6;30;42m" + "# Data Loader" + "\x1b[0m")
         loader = DataLoader(opt)
 
         # tgt_image:       (4,128,416,3)
@@ -90,77 +93,93 @@ def train():
         tgt_image, src_image_stack, intrinsics = loader.load_train_val_batch("train")
 
         # Build Model
-        print("# Build Model")
+        print("\x1b[6;30;42m" + "# Build Model" + "\x1b[0m")
         model = GeoNetModel(opt, tgt_image, src_image_stack, intrinsics)
         loss = model.total_loss
-        tf.summary.scalar("loss", loss)
-        merged_summary_op = tf.summary.merge_all()
+        tf.compat.v1.summary.scalar("loss", loss)
+        merged_summary_op = tf.compat.v1.summary.merge_all()
 
         # TODO: validation set loss
         # val_tgt_image, val_src_image_stack, val_intrinsics = loader.load_train_val_batch("val")
         # val_model = GeoNetModel(opt, val_tgt_image, val_src_image_stack, val_intrinsics)
         # val_loss = val_model.total_loss
 
+        skip_para = ['depth_net/depth_net/delta_mod/conv_1//weights:0', 'depth_net/depth_net/delta_mod/conv_1//biases:0',
+                     'depth_net/depth_net/delta_mod/conv_2//weights:0', 'depth_net/depth_net/delta_mod/conv_2//biases:0',
+                     'depth_net/depth_net/delta_mod/conv_3//weights:0', 'depth_net/depth_net/delta_mod/conv_3//biases:0',
+                     'depth_net/depth_net/delta_mod/conv_4//weights:0', 'depth_net/depth_net/delta_mod/conv_4//biases:0']
+
         # Train Op
-        print('# Train Op')
+        print("\x1b[6;30;42m" + "# Train Op" + "\x1b[0m")
         if opt.mode == 'train_flow' and opt.flownet_type == "residual":
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
-            train_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
-            vars_to_restore = slim.get_variables_to_restore(
-                include=["depth_net", "pose_net"])
+            train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
+            vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
         else:
-            train_vars = [var for var in tf.trainable_variables()]
-            vars_to_restore = slim.get_model_variables()
+            train_vars = [var for var in tf.compat.v1.trainable_variables()]
+            # vars_to_restore = slim.get_model_variables()
+            # Partially Restoring Models：
+            vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
+
+        # vars_to_restore
+        print("\x1b[6;30;42m" + "# vars_to_restore" + "\x1b[0m")
+        for v in vars_to_restore:
+            print(v)
+
+        print("----------------")
+
+        print("\x1b[6;30;42m" + "# train_vars" + "\x1b[0m")
+        for v in train_vars:
+            print(v)
 
         # If train from checkpoint file
         if opt.init_ckpt_file != None:
-            init_assign_op, init_feed_dict = slim.assign_from_checkpoint(
-                opt.init_ckpt_file, vars_to_restore)
+            init_assign_op, init_feed_dict = slim.assign_from_checkpoint(opt.init_ckpt_file, vars_to_restore)
 
-        print("# Optimizer")
-        optim = tf.train.AdamOptimizer(opt.learning_rate, 0.9)
-        train_op = slim.learning.create_train_op(loss, optim,
-                                                 variables_to_train=train_vars)
+        print("\x1b[6;30;42m" + "# Optimizer" + "\x1b[0m")
+        optim = tf.compat.v1.train.AdamOptimizer(opt.learning_rate, 0.9)
+        train_op = slim.learning.create_train_op(loss, optim, variables_to_train=train_vars)
 
         # Global Step
-        print("# Global Step")
+        print("\x1b[6;30;42m" + "# Global Step" + "\x1b[0m")
         global_step = tf.Variable(0, name='global_step', trainable=False)
-        incr_global_step = tf.assign(global_step, global_step+1)
+        incr_global_step = tf.compat.v1.assign(global_step, global_step+1)
 
         # Parameter Count
-        print("# Parameter Count")
-        parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v))
-                                         for v in train_vars])
+        print("\x1b[6;30;42m" + "# Parameter Count" + "\x1b[0m")
+        parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) for v in train_vars])
 
         # Saver
-        print("# Saver")
-        saver = tf.train.Saver([var for var in tf.model_variables()] +
+        print("\x1b[6;30;42m" + "# Saver" + "\x1b[0m")
+        saver = tf.compat.v1.train.Saver([var for var in tf.compat.v1.model_variables()] +
                                [global_step],
                                max_to_keep=opt.max_to_keep)
                                # 20 files
 
         # Session
-        print("# Session")
+        print("\x1b[6;30;42m" + "# Session" + "\x1b[0m")
+        # tf.train.MonitoredTrainingSession
         sv = tf.train.Supervisor(logdir=opt.checkpoint_dir,
                                  save_summaries_secs=0,
                                  saver=None)
 
-        config = tf.ConfigProto()
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
 
         with sv.managed_session(config=config) as sess:
-            print('Trainable variables: ')
+            print("\x1b[6;30;42m" + "# Trainable variables" + "\x1b[0m")
+
             for var in train_vars:
                 print(var.name)
             print("parameter_count =", sess.run(parameter_count))
 
             if opt.init_ckpt_file != None:
                 sess.run(init_assign_op, init_feed_dict)
-            start_time = time.time()
 
             print("------------------------")
-            print("entering into iterations")
+            print("\x1b[6;30;42m" + "# entering into iterations" + "\x1b[0m")
+            
+            start_time = time.time()
 
             for step in range(1, opt.max_steps):
                 fetches = {
@@ -171,6 +190,8 @@ def train():
             
                 fetches["depth"] = model.pred_depth[0] # fetch depth
                 fetches["pose"] = model.pred_poses # fetch pose
+                fetches["tgt_image"] = model.tgt_image # fetch tgt_image
+                fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack
                 
                 if opt.delta_mode:
                     fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
@@ -182,8 +203,20 @@ def train():
                 
                 if opt.save_intermedia:
                     save_tmp_name = str(time.time()) # '1585880463.4654446'
-                    np.save(os.path.join(opt.log_savedir, "depth", save_tmp_name), results["depth"])
-                    np.save(os.path.join(opt.log_savedir, "pose", save_tmp_name), results["pose"])
+                    depth_save_dir = os.path.join(opt.log_savedir, "depth")
+                    pose_save_dir = os.path.join(opt.log_savedir, "pose")
+                    tgt_image_save_dir = os.path.join(opt.log_savedir, "tgt_image")
+                    src_image_stack_save_dir = os.path.join(opt.log_savedir, "src_image_stack")
+
+                    make_dir(depth_save_dir)
+                    make_dir(pose_save_dir)
+                    make_dir(tgt_image_save_dir)
+                    make_dir(src_image_stack_save_dir)
+                 
+                    np.save(os.path.join(depth_save_dir, save_tmp_name), results["depth"])
+                    np.save(os.path.join(pose_save_dir, save_tmp_name), results["pose"])
+                    np.save(os.path.join(tgt_image_save_dir, save_tmp_name), results["tgt_image"])
+                    np.save(os.path.join(src_image_stack_save_dir, save_tmp_name), results["src_image_stack"])
 
                     if opt.delta_mode:
                         np.save(os.path.join(opt.log_savedir, "delta", save_tmp_name), results["delta_xyz"])
@@ -191,42 +224,28 @@ def train():
                 if step % 100 == 0:
                     time_per_iter = (time.time() - start_time) / 100
                     start_time = time.time()
-                    print('Iteration: [%7d] | Time: %4.4fs/iter | Loss: %.3f'
-                          % (step, time_per_iter, results["loss"]))
+                    print('Iteration: [%7d] | Time: %4.4fs/iter | Loss: %.3f' % (step, time_per_iter, results["loss"]))
 
                     merged_summary = sess.run(merged_summary_op)
                     sv.summary_computed(sess, merged_summary, global_step=step)
 
                 if step % opt.save_ckpt_freq == 0:
-                    saver.save(sess, os.path.join(
-                        opt.checkpoint_dir, 'model'), global_step=step)
-                    
-                    # TODO: do validation here
+                    saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
+                
                     # eval_time = time.time()
-
+                    # TODO: do validation here, every save_ckpt_freq
                     # time_eval = (time.time() - eval_time)
-                    # print('Evaluation: [%7d] | Time: %4.4fs | Loss: %.3f'
-                    #       % (step, time_eval, val_results["loss"]))
-
+                    # print('Evaluation: [%7d] | Time: %4.4fs | Loss: %.3f' % (step, time_eval, val_results["loss"]))
 
 def main(_):
-    # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    # os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-    # from tensorflow.python.client import device_lib
-    # print(device_lib.list_local_devices())
-
-    # tf.test.is_gpu_available()
-    # tf.test.gpu_device_name()
-
     opt.num_source = opt.seq_length - 1  
-    # depth: 3-1=2 or 
-    # odmetery: 5-1=4
+    # depth: 3-1=2 or odometry: 5-1=4
+
     opt.num_scales = 4
 
     opt.add_flownet = opt.mode in ['train_flow', 'test_flow']
     opt.add_dispnet = opt.add_flownet and opt.flownet_type == 'residual' \
-        or opt.mode in ['train_rigid', 'test_depth']
+        or opt.mode in ['train_rigid', 'test_depth', 'test_depth_delta']
     opt.add_posenet = opt.add_flownet and opt.flownet_type == 'residual' \
         or opt.mode in ['train_rigid', 'test_pose']
 
@@ -234,10 +253,12 @@ def main(_):
         train()
     elif opt.mode == 'test_depth':
         test_depth(opt)
+    elif opt.mode == 'test_depth_delta':
+        test_depth_delta(opt)
     elif opt.mode == 'test_pose':
         test_pose(opt)
     elif opt.mode == 'test_flow':
         test_flow(opt)
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()

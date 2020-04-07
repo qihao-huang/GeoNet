@@ -27,23 +27,28 @@ class DataLoader(object):
         # '/userhome/34/h3567721/dataset/kitti/kitti_raw_eigen/2011_09_30_drive_0034_sync_03/0000000558_cam.txt'
 
         # tensorflow.python.ops.data_flow_ops.FIFOQueue
-        image_paths_queue = tf.train.string_input_producer(
-            file_list['image_file_list'], shuffle=False)
-        cam_paths_queue = tf.train.string_input_producer(
-            file_list['cam_file_list'], shuffle=False)
+        image_paths_queue = tf.train.string_input_producer(file_list['image_file_list'], shuffle=False)
+        # UPGRADE:
+        # image_paths_queue = tf.data.Dataset.from_tensor_slices(file_list['image_file_list'])
+        cam_paths_queue = tf.train.string_input_producer(file_list['cam_file_list'], shuffle=False)
+        # UPGRADE:
+        # cam_paths_queue = tf.data.Dataset.from_tensor_slices(file_list['cam_file_list'])
 
         # Load images
+        # UPGRADE:
+        # img_reader = tf.data.Dataset.map()
         img_reader = tf.WholeFileReader()
         _, image_contents = img_reader.read(image_paths_queue)
         image_seq = tf.image.decode_jpeg(image_contents)
 
         # tgt_image: (128, 416, 3)
-        # src_image_stack: (128, 416, 3)
-        tgt_image, src_image_stack = \
-            self.unpack_image_sequence(
-                image_seq, opt.img_height, opt.img_width, opt.num_source)
+        # src_image_stack: (128, 416, 6)
+        tgt_image, src_image_stack = self.unpack_image_sequence(
+            image_seq, opt.img_height, opt.img_width, opt.num_source)
 
         # Load camera intrinsics
+        # UPGRADE:
+        # cam_reader = tf.data.TextLineDataset()
         cam_reader = tf.TextLineReader()
         _, raw_cam_contents = cam_reader.read(cam_paths_queue)
 
@@ -53,7 +58,7 @@ class DataLoader(object):
 
         # rec_def: [[1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0]]
 
-        raw_cam_vec = tf.decode_csv(raw_cam_contents,
+        raw_cam_vec = tf.io.decode_csv(raw_cam_contents,
                                     record_defaults=rec_def)
         raw_cam_vec = tf.stack(raw_cam_vec)
         intrinsics = tf.reshape(raw_cam_vec, [3, 3])
@@ -72,6 +77,8 @@ class DataLoader(object):
         # intrinsics: (4,3,3)
 
         if mode == "train":
+            # UPGRADE: 
+            # tf.data.Dataset.shuffle(min_after_dequeue).batch(batch_size)
             src_image_stack, tgt_image, intrinsics = \
                 tf.train.shuffle_batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
                                     capacity, min_after_dequeue, opt.num_threads, seed)
@@ -185,12 +192,13 @@ class DataLoader(object):
         # Random scaling
         def random_scaling(im, intrinsics):
             batch_size, in_h, in_w, _ = im.get_shape().as_list()
-            scaling = tf.random_uniform([2], 1, 1.15)
+            # scaling = tf.random_uniform([2], 1, 1.15)
+            scaling = tf.random.uniform([2], 1, 1.15)
             x_scaling = scaling[0]
             y_scaling = scaling[1]
             out_h = tf.cast(in_h * y_scaling, dtype=tf.int32)
             out_w = tf.cast(in_w * x_scaling, dtype=tf.int32)
-            im = tf.image.resize_area(im, [out_h, out_w])
+            im = tf.compat.v1.image.resize_area(im, [out_h, out_w])
             fx = intrinsics[:, 0, 0] * x_scaling
             fy = intrinsics[:, 1, 1] * y_scaling
             cx = intrinsics[:, 0, 2] * x_scaling
@@ -203,9 +211,9 @@ class DataLoader(object):
         def random_cropping(im, intrinsics, out_h, out_w):
             # batch_size, in_h, in_w, _ = im.get_shape().as_list()
             batch_size, in_h, in_w, _ = tf.unstack(tf.shape(im))
-            offset_y = tf.random_uniform(
+            offset_y = tf.random.uniform(
                 [1], 0, in_h - out_h + 1, dtype=tf.int32)[0]
-            offset_x = tf.random_uniform(
+            offset_x = tf.random.uniform(
                 [1], 0, in_w - out_w + 1, dtype=tf.int32)[0]
             im = tf.image.crop_to_bounding_box(
                 im, offset_y, offset_x, out_h, out_w)
@@ -223,15 +231,15 @@ class DataLoader(object):
             im_f = tf.image.convert_image_dtype(im, tf.float32)
 
             # randomly shift gamma
-            random_gamma = tf.random_uniform([], 0.8, 1.2)
+            random_gamma = tf.random.uniform([], 0.8, 1.2)
             im_aug = im_f ** random_gamma
 
             # randomly shift brightness
-            random_brightness = tf.random_uniform([], 0.5, 2.0)
+            random_brightness = tf.random.uniform([], 0.5, 2.0)
             im_aug = im_aug * random_brightness
 
             # randomly shift color
-            random_colors = tf.random_uniform([in_c], 0.8, 1.2)
+            random_colors = tf.random.uniform([in_c], 0.8, 1.2)
             white = tf.ones([batch_size, in_h, in_w])
             color_image = tf.stack([white * random_colors[i]
                                     for i in range(in_c)], axis=3)
@@ -247,7 +255,7 @@ class DataLoader(object):
         im, intrinsics = random_scaling(im, intrinsics)
         im, intrinsics = random_cropping(im, intrinsics, out_h, out_w)
         im = tf.cast(im, dtype=tf.uint8)
-        do_augment = tf.random_uniform([], 0, 1)
+        do_augment = tf.random.uniform([], 0, 1)
         im = tf.cond(do_augment > 0.5, lambda: random_coloring(im), lambda: im)
 
         return im, intrinsics

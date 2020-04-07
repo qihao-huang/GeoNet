@@ -26,7 +26,7 @@ def flow_net(opt, flownet_inputs):
 def pose_net(opt, posenet_inputs):
     is_training = opt.mode == 'train_rigid'
     batch_norm_params = {'is_training': is_training}
-    with tf.variable_scope('pose_net') as sc:
+    with tf.compat.v1.variable_scope('pose_net') as sc:
         with slim.arg_scope([slim.conv2d],
                             normalizer_fn=slim.batch_norm,
                             normalizer_params=batch_norm_params,
@@ -72,7 +72,7 @@ def pose_net(opt, posenet_inputs):
 
 def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
     batch_norm_params = {'is_training': is_training}
-    with tf.variable_scope(var_scope) as sc:
+    with tf.compat.v1.variable_scope(var_scope) as sc:
         with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                             normalizer_fn=slim.batch_norm,
                             normalizer_params=batch_norm_params,
@@ -116,7 +116,8 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             pred4 = get_pred(iconv4)                        # [12, 16, 52,  1]
             upred4  = upsample_nn(pred4, 2)                 # [12, 32, 104, 1]
             if opt.delta_mode:
-                conv_delta_xyz4 = get_delta_xyz(opt, iconv4)
+                with tf.name_scope('delta_mod/conv_1') as scope:
+                    conv_delta_xyz4 = get_delta_xyz(opt, iconv4, scope)
 
             upconv3 = upconv(iconv4,   64, 3, 2) #H/4       # [12, 32, 104, 64] 
             concat3 = tf.concat([upconv3, skip2, upred4], 3)# [12, 32, 104, 129]
@@ -126,7 +127,8 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             pred3 = get_pred(iconv3)                        # [12, 32, 104, 1]
             upred3  = upsample_nn(pred3, 2)                 # [12, 64, 208, 1]
             if opt.delta_mode:
-                conv_delta_xyz3 = get_delta_xyz(opt, iconv3)
+                with tf.name_scope('delta_mod/conv_2') as scope:
+                    conv_delta_xyz3 = get_delta_xyz(opt, iconv3, scope)
 
             upconv2 = upconv(iconv3,   32, 3, 2) #H/2       # [12, 64, 208, 32]
             concat2 = tf.concat([upconv2, skip1, upred3], 3)# [12, 64, 208, 97]
@@ -136,7 +138,8 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             pred2 = get_pred(iconv2)                        # [12, 64, 208, 1]
             upred2  = upsample_nn(pred2, 2)                 # [12, 128, 416, 1]
             if opt.delta_mode:
-                conv_delta_xyz2 = get_delta_xyz(opt, iconv2)
+                with tf.name_scope('delta_mod/conv_3') as scope:
+                    conv_delta_xyz2 = get_delta_xyz(opt, iconv2, scope)
 
             upconv1 = upconv(iconv2,  16, 3, 2) #H          # [12, 128, 416, 16]
             concat1 = tf.concat([upconv1, upred2], 3)       # [12, 128, 416, 17]
@@ -145,7 +148,8 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
             # calling get_disp_resnet50(iconv1)
             pred1 = get_pred(iconv1)                        # [12, 128, 416, 1]
             if opt.delta_mode:
-                conv_delta_xyz1 = get_delta_xyz(opt, iconv1)
+                with tf.name_scope('delta_mod/conv_4') as scope:
+                    conv_delta_xyz1 = get_delta_xyz(opt, iconv1, scope)
 
             # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
             pred_list = [pred1, pred2, pred3, pred4]
@@ -240,19 +244,20 @@ def get_disp_vgg(x):
     disp = DISP_SCALING_VGG * slim.conv2d(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01
     return disp
 
-def get_delta_xyz(opt, x):
+def get_delta_xyz(opt, x, sc):
     # unstack e.g. [12, 16, 52, C_in] -> [4,16, 52, 3*C_in] 
     bs = opt.batch_size
     restack_x = x[:bs]
     for i in range(opt.num_source):
         restack_x = tf.concat([restack_x, x[bs*(i+1):bs*(i+2)]], axis=3)
 
-    # FIXME: 
-    # activation_fc: not sigmoid, 
-    # check delta: - +, check, only depth is +
-    # check pose: - + follow optical flow
-    delta_xyz = conv(restack_x, 12, 3, 1, activation_fn=None, normalizer_fn=None)
-
+    # Attention: we don't use sigmoid activation since it maps to (0,1)
+    # delta_xyz = conv(restack_x, 12, 3, 1, activation_fn=None, normalizer_fn=None)
+    p = np.floor((3 - 1) / 2).astype(np.int32)
+    p_x = tf.pad(restack_x, [[0, 0], [p, p], [p, p], [0, 0]])
+    # default stride=1, default padding="SAME" for slim.conv2d()
+    delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=None, normalizer_fn=None, scope=sc)
+    
     return DISP_SCALING_RESNET50 * delta_xyz + 0.01
 
 def get_disp_resnet50(x):
@@ -269,12 +274,12 @@ def resize_like(inputs, ref):
     rH, rW = ref.get_shape()[1], ref.get_shape()[2]
     if iH == rH and iW == rW:
         return inputs
-    return tf.image.resize_nearest_neighbor(inputs, [rH.value, rW.value])
+    return tf.compat.v1.image.resize_nearest_neighbor(inputs, [rH.value, rW.value])
 
 def upsample_nn(x, ratio):
     h = x.get_shape()[1].value
     w = x.get_shape()[2].value
-    return tf.image.resize_nearest_neighbor(x, [h * ratio, w * ratio])
+    return tf.compat.v1.image.resize_nearest_neighbor(x, [h * ratio, w * ratio])
 
 def upconv(x, num_out_layers, kernel_size, scale):
     upsample = upsample_nn(x, scale)
