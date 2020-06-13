@@ -26,8 +26,7 @@ python geonet_main.py \
     --max_steps=350000 \
     --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage" \
     --delta_mode \
-     --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/checkpoint_depth/model-240000" \
-    # --save_intermedia
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/checkpoint_depth/model-240000"
 
     # two stage training strategy:
     #   1. tain the rigid to provide constraints/prior for the next stage

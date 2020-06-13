@@ -17,13 +17,14 @@ def test_depth_delta(opt):
     print("test_files: ", len(test_files))
 
     ##### init #####
-    # NOTE: concat 3 consecutive frames into one to match the delta_xyz training
-    # only test with batch_size = 1, (3 (tgt, src_1, src_2), 128, 416, 3)
-    input_uint8 = tf.placeholder(tf.uint8, [opt.batch_size*3,
-                                            opt.img_height, opt.img_width, 3], name='raw_input')
+    input_uint8_tgt = tf.placeholder(tf.uint8, [opt.batch_size,
+                                            opt.img_height, opt.img_width, 3], name='raw_tgt_input')
+
+    input_uint8_src = tf.placeholder(tf.uint8, [opt.batch_size,
+                                            opt.img_height, opt.img_width, 6], name='raw_src_input')
 
     # GeoNetModel(opt, tgt_image, src_image_stack, intrinsics):
-    model = GeoNetModel(opt, input_uint8, None, None)
+    model = GeoNetModel(opt, input_uint8_tgt, input_uint8_src, None)
     fetches = {"depth": model.pred_depth[0]} # (3, 128, 416, 1)
 
     saver = tf.train.Saver([var for var in tf.model_variables()])
@@ -38,8 +39,12 @@ def test_depth_delta(opt):
             if t % 100 == 0:
                 print('processing: %d/%d' % (t, len(test_files)))
             
-            inputs = np.zeros(
-                (opt.batch_size*3, opt.img_height, opt.img_width, 3),
+            inputs_tgt = np.zeros(
+                (opt.batch_size, opt.img_height, opt.img_width, 3),
+                dtype=np.uint8)
+
+            inputs_src = np.zeros(
+                (opt.batch_size, opt.img_height, opt.img_width, 6),
                 dtype=np.uint8)
 
             # potential bug, only test with batch_size=1
@@ -51,20 +56,21 @@ def test_depth_delta(opt):
                 try:
                     # path/to/2011_09_26/2011_09_26_drive_0036_sync/image_02/data/0000000608.png
                     file_path = test_files[idx]
-                    img_name = os.path.basename(file_path)
-
+                    img_dir_path, img_full_name = os.path.split(file_path)
                     # focus on 3 frames first
-                    img_tgt_idx = int(os.path.splitext(img_name)[0])
-                    img_src_1_idx = int(os.path.splitext(img_name)[0])-1
-                    img_src_2_idx = int(os.path.splitext(img_name)[0])+1
-                    print("img_tgt_idx: ", img_tgt_idx)
-                    print("img_src_1_idx: ", img_src_1_idx)
-                    print("img_src_2_idx: ", img_src_2_idx)
+                    img_name = os.path.splitext(img_full_name)[0] # '0000000608'
+                    img_tgt_idx = int(img_name)
+                    img_src_1_idx = int(img_name)-1
+                    img_src_2_idx = int(img_name)+1
 
-                    fh_tgt = open(img_tgt_idx, 'r')
-                    fh_src_1 = open(img_src_1_idx, 'r')
-                    fh_src_2 = open(img_src_2_idx, 'r')
-                    # may fail if the idx < 0 or bigger than range
+                    img_tgt_idx_path = os.path.join(img_dir_path, str(img_tgt_idx).zfill(len(img_name))+".png")
+                    img_src_1_idx_path = os.path.join(img_dir_path, str(img_src_1_idx).zfill(len(img_name))+".png")
+                    img_src_2_idx_path = os.path.join(img_dir_path, str(img_src_2_idx).zfill(len(img_name))+".png")
+
+                    fh_tgt = open(img_tgt_idx_path, 'r')
+                    fh_src_1 = open(img_src_1_idx_path, 'r')
+                    fh_src_2 = open(img_src_2_idx_path, 'r')
+                    # may fail if the idx < 0 or exceeds than range
                     # then print error to skip that tgt frame
 
                     raw_im_tgt = pil.open(fh_tgt)
@@ -75,25 +81,21 @@ def test_depth_delta(opt):
                     scaled_im_src_1 = raw_im_src_1.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
                     scaled_im_src_2 = raw_im_src_2.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
 
-                    # tf.concat([self.dispnet_inputs, self.src_image_stack[:,:,:,3*i:3*(i+1)]], axis=0)
-                    tmp = np.concatenate((scaled_im_tgt, scaled_im_src_1), axis=0)
-                    scaled_im_concat = np.concatenate((tmp, scaled_im_src_2), axis=0)
-                    print("scaled_im_concat shape: ", scaled_im_concat.shape)
+                    scaled_im_src_concat = np.concatenate((scaled_im_src_1, scaled_im_src_2), axis=2)
 
-                    inputs[b] = np.array(scaled_im_concat)
+                    inputs_tgt[b] = np.array(scaled_im_tgt)
+                    inputs_src[b] = np.array(scaled_im_src_concat)
 
                 except Exception as e:
                     print("skip img: ", file_path)
                     print(e)
 
-            pred = sess.run(fetches, feed_dict={input_uint8: inputs})
+            pred = sess.run(fetches, feed_dict={input_uint8_tgt: inputs_tgt, input_uint8_src: inputs_src})
             for b in range(opt.batch_size): # NOTE: only test with batch_size=1, b=0
                 idx = t + b
                 if idx >= len(test_files):
                     break
                 fetch_tgt_depth = pred['depth'][b, :, :, 0] #fetch target only
-                print("fetch_tgt_depth shape: ", fetch_tgt_depth.shape)
-                pred_all.append(fetch_tgt_depth)  
+                pred_all.append(fetch_tgt_depth)
 
-        np.save(opt.output_dir + '/' +
-                os.path.basename(opt.init_ckpt_file), pred_all)
+        np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)

@@ -126,8 +126,6 @@ class GeoNetModel(object):
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
         for s in range(opt.num_scales):
-            # TODO: i range for fwd and bwd, left and right?
-            # TODO: visulize the delta_xyz
             # for deltax_xyz:
             # i=0: 0:3 -> fwd, 6:9 -> bwd
             # i=1: 3:6 -> fwd, 9:12 -> bwd
@@ -307,7 +305,6 @@ class GeoNetModel(object):
                                 (tf.reduce_mean(self.fwd_full_error_pyramid[s]) + \
                                  tf.reduce_mean(self.bwd_full_error_pyramid[s]))
                 else:
-                    # TODO: fwd_full_error_pyramid
                     flow_warp_loss += opt.flow_warp_weight*opt.num_source/2 * \
                                 (tf.reduce_sum(tf.reduce_mean(self.fwd_full_error_pyramid[s], axis=3, keep_dims=True) * \
                                  self.noc_masks_tgt[s]) / tf.reduce_sum(self.noc_masks_tgt[s]) + \
@@ -318,21 +315,18 @@ class GeoNetModel(object):
             # flags.DEFINE_float("flow_smooth_weight", 0.2, "Weight for flow smoothness, lambda_fs") 
             if opt.mode == 'train_flow' and opt.flow_smooth_weight > 0:
                 # TODO: why s+1
-                # TODO: fwd <-> tgt, bwd <-> src
                 flow_smooth_loss += opt.flow_smooth_weight/(2**(s+1)) * \
                                 (self.compute_flow_smooth_loss(self.fwd_full_flow_pyramid[s], self.tgt_image_tile_pyramid[s]) +
                                 self.compute_flow_smooth_loss(self.bwd_full_flow_pyramid[s], self.src_image_concat_pyramid[s]))
 
             # flow_consistency_loss
             if opt.mode == 'train_flow' and opt.flow_consistency_weight > 0:
-                # TODO: fwd_flow_diff_pyramid
                 flow_consistency_loss += opt.flow_consistency_weight/2 * \
                                 (tf.reduce_sum(tf.reduce_mean(self.fwd_flow_diff_pyramid[s] , axis=3, keep_dims=True) * \
                                  self.noc_masks_tgt[s]) / tf.reduce_sum(self.noc_masks_tgt[s]) + \
                                  tf.reduce_sum(tf.reduce_mean(self.bwd_flow_diff_pyramid[s] , axis=3, keep_dims=True) * \
                                  self.noc_masks_src[s]) / tf.reduce_sum(self.noc_masks_src[s]))
 
-        # TODO: regularization_loss ?
         regularization_loss = tf.add_n(tf.compat.v1.losses.get_regularization_losses())
         self.total_loss = 0  # regularization_loss
         if opt.mode == 'train_rigid':

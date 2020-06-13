@@ -219,7 +219,9 @@ def train():
                     np.save(os.path.join(src_image_stack_save_dir, save_tmp_name), results["src_image_stack"])
 
                     if opt.delta_mode:
-                        np.save(os.path.join(opt.log_savedir, "delta", save_tmp_name), results["delta_xyz"])
+                        delta_save_dir = os.path.join(opt.log_savedir, "delta")
+                        make_dir(delta_save_dir)
+                        np.save(os.path.join(delta_save_dir, save_tmp_name), results["delta_xyz"])
                 
                 if step % 100 == 0:
                     time_per_iter = (time.time() - start_time) / 100

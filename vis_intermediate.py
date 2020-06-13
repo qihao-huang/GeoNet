@@ -20,7 +20,7 @@ def vis_depth(base_path, vis_img, vis=False):
     for i in range(depth_img.shape[0]):
         sig_depth = depth_img[i, :, :, 0] 
         print(sig_depth.shape) # shape (128, 416)
-        vis_save_path = os.path.join(base_path, "vis_depth", os.path.splitext(file_name)[0]+"-"+str(i)+".png")
+        vis_save_path = os.path.join(vis_depth_dir, os.path.splitext(file_name)[0]+"-"+str(i)+".png")
 
         fig = plt.gcf()
         plt.imshow(sig_depth)
@@ -96,16 +96,47 @@ def vis_tgt(base_path, vis_img, vis=False):
     vis_tgt_dir = os.path.join(base_path, "vis_tgt")
     make_dir(vis_tgt_dir)
     tgt_image = vis_img
-    # TODO: vis target image 
+
+    print("tgt_image: ", tgt_image.shape)         # (4, 128, 416, 3)
+    for i in range(tgt_image.shape[0]):
+        sig_tgt = tgt_image[i, :, :, :] 
+        print(sig_tgt.shape) # shape (128, 416, 3)
+        vis_save_path = os.path.join(vis_tgt_dir, os.path.splitext(file_name)[0]+"-"+str(i)+".png")
+
+        fig = plt.gcf()
+        plt.imshow(sig_tgt)
+        plt.show()
+        fig.savefig(vis_save_path)
+
 
 def vis_src(base_path, vis_img, vis=False):    
     vis_src_dir = os.path.join(base_path, "vis_src")
     make_dir(vis_src_dir)
     src_image = vis_img
-    # TODO: vis src images
+
+    print("src_image: ", src_image.shape)         # (4, 128, 416, 6)
+
+    for i in range(src_image.shape[0]):
+        sig_src_1 = src_image[i, :, :, :3] 
+        print(sig_src_1.shape) # shape (128, 416, 3)
+        sig_src_2 = src_image[i, :, :, 3:6] 
+        print(sig_src_2.shape) # shape (128, 416, 3)
+        vis_save_path_1 = os.path.join(vis_src_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-1.png")
+        vis_save_path_2 = os.path.join(vis_src_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-2.png")
+
+        fig = plt.gcf()
+        plt.imshow(sig_src_1)
+        plt.show()
+        fig.savefig(vis_save_path_1)
+
+        fig = plt.gcf()
+        plt.imshow(sig_src_2)
+        plt.show()
+        fig.savefig(vis_save_path_2)
+
     
 if __name__ == "__main__":
-    base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/log/depth_geo_delta_vis"
+    base_path = os.path.join("/userhome/34/h3567721/projects/Depth/GeoNet/log/", "depth_geo_delta_vis_two_stage")
 
     tgt_path = os.path.join(base_path, "tgt_image")
     src_path = os.path.join(base_path, "src_image_stack")
@@ -124,7 +155,7 @@ if __name__ == "__main__":
             vis_depth(base_path, vis_img=depth_img, vis=True)
         if "delta" in vis_var:
             delta_img = np.load(os.path.join(delta_path, file_name))
-            vis_delta(base_path, vis_img=depth_img, vis=True)
+            vis_delta(base_path, vis_img=delta_img, vis=True)
         if "pose" in vis_var:
             pose_file = np.load(os.path.join(pose_path, file_name))
             vis_pose(base_path, vis_img=pose_file, vis=True)
