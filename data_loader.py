@@ -231,7 +231,7 @@ class DataLoader(object):
             im_f = tf.image.convert_image_dtype(im, tf.float32)
 
             # randomly shift gamma
-            random_gamma = tf.random.uniform([], 0.8, 1.2)
+            random_gamma = tf.random.uniform([], 0.8    , 1.2)
             im_aug = im_f ** random_gamma
 
             # randomly shift brightness

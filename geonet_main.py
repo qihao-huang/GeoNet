@@ -17,8 +17,10 @@ from geonet_test_flow import *
 from data_loader import DataLoader
 
 flags = tf.app.flags
+####
 flags.DEFINE_boolean("save_intermedia",           False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
+####
 flags.DEFINE_string("mode",                         "", "(train_rigid, train_flow) or (test_depth, test_pose, test_flow)")
 flags.DEFINE_string("dataset_dir",                  "", "Dataset directory")
 flags.DEFINE_string("init_ckpt_file",             None, "Specific checkpoint file to initialize from")
@@ -99,11 +101,7 @@ def train():
         tf.compat.v1.summary.scalar("loss", loss)
         merged_summary_op = tf.compat.v1.summary.merge_all()
 
-        # TODO: validation set loss
-        # val_tgt_image, val_src_image_stack, val_intrinsics = loader.load_train_val_batch("val")
-        # val_model = GeoNetModel(opt, val_tgt_image, val_src_image_stack, val_intrinsics)
-        # val_loss = val_model.total_loss
-
+        # skip those self-defined parameters
         skip_para = ['depth_net/depth_net/delta_mod/conv_1//weights:0', 'depth_net/depth_net/delta_mod/conv_1//biases:0',
                      'depth_net/depth_net/delta_mod/conv_2//weights:0', 'depth_net/depth_net/delta_mod/conv_2//biases:0',
                      'depth_net/depth_net/delta_mod/conv_3//weights:0', 'depth_net/depth_net/delta_mod/conv_3//biases:0',
@@ -233,12 +231,7 @@ def train():
 
                 if step % opt.save_ckpt_freq == 0:
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
-                
-                    # eval_time = time.time()
-                    # TODO: do validation here, every save_ckpt_freq
-                    # time_eval = (time.time() - eval_time)
-                    # print('Evaluation: [%7d] | Time: %4.4fs | Loss: %.3f' % (step, time_eval, val_results["loss"]))
-
+            
 def main(_):
     opt.num_source = opt.seq_length - 1  
     # depth: 3-1=2 or odometry: 5-1=4

@@ -15,9 +15,7 @@ export CUDA_VISIBLE_DEVICES=0
 
 user_path="/userhome/34/h3567721"
 
-# $user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta/model-250000"
-
-# train depth
+# to save intermedia variables to visulize 
 python geonet_main.py \
     --mode=train_rigid \
     --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
