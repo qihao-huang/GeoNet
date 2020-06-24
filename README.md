@@ -20,7 +20,6 @@ kitti_raw_eigen
 
 ```
 
-
 ## pose
 [data_odometry_color.zip](https://s3.eu-central-1.amazonaws.com/avg-kitti/data_odometry_color.zip)
 
@@ -29,7 +28,7 @@ kitti_raw_eigen
 ```
 GT_pose_snippets # generated
 
-kitti_raw_odom # generated
+kitti_odom # generated
 
 odometry
     - dataset:
@@ -76,6 +75,14 @@ depth:
             - image
             - intrinsics
             - velodyne_raw
-        - train
-        - val
+    - devkit
+    - train
+    - val
+```
+
+Overall KITTI size listed here after extraction:
+
+```
+du -sh
+# 320G
 ```
