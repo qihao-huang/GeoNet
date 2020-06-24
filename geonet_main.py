@@ -117,15 +117,14 @@ def train():
             train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
             vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
         elif opt.delta_mode:
-            # train second stage model in delta mode
-            # we have to skip some parameters in first stage's model
-            print("\x1b[6;30;42m" + "Partially Restoring Models" + "\x1b[0m")
-            # FIXME: difference between train_vars and vars_to_restore
-            # FIXME: how to fix, how to load
-            train_vars = [var for var in tf.compat.v1.trainable_variables()]  
+            # train second stage model in delta mode 
+            print("\x1b[6;30;42m" + "Second stage training for geo_xyz " + "\x1b[0m")
+            # only choose depth_net vats, parameters in pose_net has been fixed.
+            train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="depth_net")
+            # To load first stage's model by partially restoring models
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
         else:
-            print("\x1b[6;30;42m" + "First stage training" + "\x1b[0m")
+            print("\x1b[6;30;42m" + "First stage training for geo_xyz" + "\x1b[0m")
             train_vars = [var for var in tf.compat.v1.trainable_variables()]
             vars_to_restore = slim.get_model_variables()
 
@@ -133,8 +132,6 @@ def train():
         print("\x1b[6;30;42m" + "# vars_to_restore" + "\x1b[0m")
         for v in vars_to_restore:
             print(v)
-
-        print("----------------")
 
         print("\x1b[6;30;42m" + "# train_vars" + "\x1b[0m")
         for v in train_vars:
