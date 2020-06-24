@@ -18,7 +18,6 @@ python kitti_eval/eval_depth.py \
     --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
     --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_xyz_depth_delta_two_stage/model-100000.npy"
 
-
 python geonet_main.py \
     --mode=test_depth_delta \
     --dataset_dir=$user_path"/dataset/kitti/raw_data/" \
@@ -33,3 +32,8 @@ python kitti_eval/eval_depth.py \
     --split=eigen \
     --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
     --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_xyz_depth_delta_two_stage/model-250000-sn.npy"
+
+python kitti_eval/eval_depth.py \
+    --split=eigen \
+    --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
+    --pred_file=$user_path"/projects/Depth/GeoNet/predictions/model-250000.npy"

@@ -263,7 +263,7 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
         cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
     else:
         # generate new 3D points by adding delta xyz
-        # [4, 3, 128, 416]
+        # [4, 3, 128, 416]                        
         cam_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
 
         # TODO: add a theshold to delta xyz
