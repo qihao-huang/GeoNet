@@ -112,14 +112,22 @@ def train():
         # Train Op
         print("\x1b[6;30;42m" + "# Train Op" + "\x1b[0m")
         if opt.mode == 'train_flow' and opt.flownet_type == "residual":
+            print("\x1b[6;30;42m" + "finetune ResFlowNetS" + "\x1b[0m")
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
             train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
             vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
-        else:
-            train_vars = [var for var in tf.compat.v1.trainable_variables()]
-            # vars_to_restore = slim.get_model_variables()
-            # Partially Restoring Models：
+        elif opt.delta_mode:
+            # train second stage model in delta mode
+            # we have to skip some parameters in first stage's model
+            print("\x1b[6;30;42m" + "Partially Restoring Models" + "\x1b[0m")
+            # FIXME: difference between train_vars and vars_to_restore
+            # FIXME: how to fix, how to load
+            train_vars = [var for var in tf.compat.v1.trainable_variables()]  
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
+        else:
+            print("\x1b[6;30;42m" + "First stage training" + "\x1b[0m")
+            train_vars = [var for var in tf.compat.v1.trainable_variables()]
+            vars_to_restore = slim.get_model_variables()
 
         # vars_to_restore
         print("\x1b[6;30;42m" + "# vars_to_restore" + "\x1b[0m")
@@ -154,7 +162,7 @@ def train():
         saver = tf.compat.v1.train.Saver([var for var in tf.compat.v1.model_variables()] +
                                [global_step],
                                max_to_keep=opt.max_to_keep)
-                               # recent 20 checkpoint files
+                               # default: recent 20 checkpoint files
 
         # Session
         print("\x1b[6;30;42m" + "# Session" + "\x1b[0m")
@@ -187,14 +195,15 @@ def train():
                         "global_step": global_step,
                         "incr_global_step": incr_global_step,
                     }
-            
-                fetches["depth"] = model.pred_depth[0] # fetch depth
-                fetches["pose"] = model.pred_poses # fetch pose
-                fetches["tgt_image"] = model.tgt_image # fetch tgt_image
-                fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack
-                
-                if opt.delta_mode:
-                    fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
+
+                if opt.save_intermedia:
+                    fetches["depth"] = model.pred_depth[0] # fetch depth
+                    fetches["pose"] = model.pred_poses # fetch pose
+                    fetches["tgt_image"] = model.tgt_image # fetch tgt_image
+                    fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack
+                    
+                    if opt.delta_mode:
+                        fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
 
                 if step % 100 == 0:
                     fetches["loss"] = loss

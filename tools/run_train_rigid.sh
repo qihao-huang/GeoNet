@@ -8,12 +8,13 @@ user_path="/userhome/34/h3567721"
 python geonet_main.py \
     --mode=train_rigid \
     --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
-    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/checkpoint_depth_2" \
+    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/checkpoint_depth_3" \
     --learning_rate=0.0002 \
     --seq_length=3 \
     --batch_size=4 \
-    --max_steps=350000 \
-    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_2" 
+    --max_steps=350001 \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_3" \
+    --max_to_keep=40 
 
 # train pose, seq_length=5
 # python geonet_main.py \

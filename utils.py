@@ -267,6 +267,7 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
         cam_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
 
         # TODO: add a theshold to delta xyz
+        
 
         # cam_coords_delta: [4, 4, 128, 416], delta_xyz: [4, 128, 416, 3]
         cam_coords_delta = cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True)

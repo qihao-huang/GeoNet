@@ -1,18 +1,5 @@
 # depth xyz
-conda_env=$(echo $CONDA_DEFAULT_ENV)
-
-if [ $conda_env == "geonet-v" ]
-then
-    echo $conda_env
-    echo "Running with geonet-v, Python 2.7, Tensorflow 1.14"
-else
-    echo $conda_env
-    conda activate geonet-v  
-    echo "Setting geonet-v, Python 2.7, Tensorflow 1.14"
-fi
-
 export CUDA_VISIBLE_DEVICES=0
-
 user_path="/userhome/34/h3567721"
 
 # train depth
