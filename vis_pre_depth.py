@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import shutil
-import cv2
 
 import matplotlib as mpl
 if os.environ.get('DISPLAY','') == '':
@@ -23,7 +22,7 @@ if __name__ == "__main__":
     base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/GeoNet_models_and_predictions/predictions"
     dir_name = "depth_result"
 
-    file_name = "model_sn"
+    file_name = "resnet_eigen"
 
     depth_path = os.path.join(base_path, dir_name)
     vis_depth_dir = os.path.join(base_path, dir_name+"_vis", file_name)    
