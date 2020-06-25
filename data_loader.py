@@ -83,7 +83,6 @@ class DataLoader(object):
                 tf.train.shuffle_batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
                                     capacity, min_after_dequeue, opt.num_threads, seed)
         else:
-            # TODO: val no shuffle?
             src_image_stack, tgt_image, intrinsics = \
                 tf.train.batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
                                 opt.num_threads,capacity)

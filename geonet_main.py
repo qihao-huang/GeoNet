@@ -107,8 +107,6 @@ def train():
                      'depth_net/depth_net/delta_mod/conv_3//weights:0', 'depth_net/depth_net/delta_mod/conv_3//biases:0',
                      'depth_net/depth_net/delta_mod/conv_4//weights:0', 'depth_net/depth_net/delta_mod/conv_4//biases:0']
 
-        # TODO: skip pose_net's parameters in second stage training
-    
         # Train Op
         print("\x1b[6;30;42m" + "# Train Op" + "\x1b[0m")
         if opt.mode == 'train_flow' and opt.flownet_type == "residual":
