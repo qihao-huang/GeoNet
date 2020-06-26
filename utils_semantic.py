@@ -113,14 +113,30 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
 
     return cam_coords
 
+def to_mask_delta_xyz(mask_bool_coords, delta_xyz):
+    """
+    mask_bool_coords: [4, 3, 128, 416]
+    delta_xyz: [4, 3, 128, 316]
+    """
+    # TODO:
+    print(mask_bool_coords[0, 0,:,:])
+    
+    # 1. convert the second channle values into 0, 1
+    # element-wise.  
+    # 2. masked_delta_xyz = tf.multiply(mask_bool_coords, delta_xyz)
 
-def cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True):
+    return delta_xyz
+
+
+def cam_add_delta(cam_coords, mask_bool_coords, delta_xyz, is_homogeneous=True):
     batch, _, height, width = cam_coords.get_shape().as_list()
 
-    # FIXME: transpose
     # [0 , 1, 2, 3 ] -> [0, 3, 1, 2]
     # delta_xyz [4, 128, 416, 3] -> [4, 3, 128, 316]
     delta_xyz = tf.transpose(delta_xyz[:, :, :, :], [0, 3, 1, 2])
+
+    # NOTE: use semantic mask here to extract only useful delta
+    delta_xyz = to_mask_delta_xyz(mask_bool_coords, delta_xyz)
 
     # [4, 3, 128*416]
     delta_xyz = tf.reshape(delta_xyz, [batch, 3, -1])
@@ -253,25 +269,37 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
     pixel_coords = meshgrid(batch, height, width)
 
     # [4, 128, 416, 2]
+    # [0>4, 1>2, 2>128, 3>416] -> [0,2,3,1] -> [0>4, 2>128, 3>416, 1>2]
     tgt_pixel_coords = tf.transpose(pixel_coords[:, :2, :, :], [0, 2, 3, 1])
 
     # Convert pixel coordinates to the camera frame
     # D K^-1 P, [4, 4, 128, 416]
-
     if delta_xyz == None:
-        cam_coords = pixel2cam(depth, pixel_coords, intrinsics)
+        # original geonet's manner
+        # depth: (4, 128, 416) 
+        # pixel_coords: [4, 2, 128, 416]
+        # cam_coords: [4, 4, 128, 416]
+        cam_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True)
     else:
         # generate new 3D points by adding delta xyz
-        # [4, 3, 128, 416]                        
+        # cam_coords: [4, 3, 128, 416]                 
         cam_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
+
+        # mask_bool_coords: ([4, 3, 128, 416] )
+        # Convert a 2D binary mask into 3D binary mask
+        # there are 3 (x,y,z) vars in the second channel of mask_bool_coords
+        # only two values in each x, y, z
+        # we use this to set a binary threshold mask of delta_xyz  
+        mask_bool_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
         
-        # cam_coords_delta: [4, 4, 128, 416], delta_xyz: [4, 128, 416, 3]
-        cam_coords_delta = cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True)
+        # cam_coords; [4, 3, 128, 416]
+        # delta_xyz: [4, 128, 416, 3]
+        # cam_coords_delta: [4, 4, 128, 416]
+        cam_coords_delta = cam_add_delta(cam_coords, mask_bool_coords, delta_xyz, is_homogeneous=True)
 
     # Construct a 4x4 intrinsic matrix
     filler = tf.constant([0.0, 0.0, 0.0, 1.0], shape=[1, 1, 4])
     filler = tf.tile(filler, [batch, 1, 1])
-
     intrinsics = tf.concat([intrinsics, tf.zeros([batch, 3, 1])], axis=2)
     intrinsics = tf.concat([intrinsics, filler], axis=1)
 

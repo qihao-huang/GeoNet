@@ -9,17 +9,18 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
-from geonet_model import *
+from geonet_model_semantic import *
 from geonet_test_depth import *
 from geonet_test_depth_detla import *
 from geonet_test_pose import *
 from geonet_test_flow import *
-from data_loader import DataLoader
+from data_loader_semantic import DataLoader
 
 flags = tf.app.flags
 ####
 flags.DEFINE_boolean("save_intermedia",           False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
+flags.DEFINE_boolean("semantic_dataset_dir",        "", "Semantic dataset directory to impose delta training")
 
 ####
 flags.DEFINE_string("mode",                         "", "(train_rigid, train_flow) or (test_depth, test_pose, test_flow)")
@@ -92,12 +93,14 @@ def train():
 
         # tgt_image:       (4,128,416,3)
         # src_image_stack: (4,128,416,6)
+        # tgt_sem:         (4,128,416,3)
+        # src_sem_stack:   (4,128,416,6)
         # intrinsics:      (4,4,3,3)
-        tgt_image, src_image_stack, intrinsics = loader.load_train_val_batch("train")
+        tgt_image, src_image_stack, tgt_sem, src_sem_stack, intrinsics = loader.load_train_val_batch("train")
 
         # Build Model
         print("\x1b[6;30;42m" + "# Build Model" + "\x1b[0m")
-        model = GeoNetModel(opt, tgt_image, src_image_stack, intrinsics)
+        model = GeoNetModel(opt, tgt_image, src_image_stack, tgt_sem, src_sem_stack, intrinsics)
         loss = model.total_loss
         tf.compat.v1.summary.scalar("loss", loss)
         merged_summary_op = tf.compat.v1.summary.merge_all()
