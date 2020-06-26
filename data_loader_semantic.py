@@ -18,7 +18,7 @@ class DataLoader(object):
         opt = self.opt
 
         # Load the list of training files into queues
-        file_list = self.format_file_list(opt.dataset_dir, opt.semantic_dataset_dir, mode="train")
+        file_list = self.format_file_list(opt.dataset_dir, opt.semantic_dataset_dir, split="train")
 
         # file_list['image_file_list']
         # '/userhome/34/h3567721/dataset/kitti/kitti_raw_eigen/2011_09_30_drive_0034_sync_03/0000000558.jpg'
@@ -36,17 +36,16 @@ class DataLoader(object):
         # ------------------------------------------------------
         # Load images
         img_reader = tf.WholeFileReader()
-        # _, image_contents = img_reader.read(image_paths_queue)
-        x, image_contents = img_reader.read(image_paths_queue)
-        print(x)
+        _, image_contents = img_reader.read(image_paths_queue)
         image_seq = tf.image.decode_jpeg(image_contents)
 
         # Load sem
         sem_reader = tf.WholeFileReader()
-        # _, sem_contents = sem_reader.read(sem_paths_queue)
-        y, sem_contents = sem_reader.read(sem_paths_queue)
-        print(y)
-        sem_seq = tf.image.decode_jpeg(sem_contents)
+        _, sem_contents = sem_reader.read(sem_paths_queue)
+        # binary mask is grayscale data, but to make it smaple
+        # by reusing RGB image's processing function.
+        # to make it 3 channels, same value in each channel
+        sem_seq = tf.image.decode_jpeg(sem_contents, channels=3)
         
         # ------------------------------------------------------
         # tgt_image: (128, 416, 3)

@@ -9,18 +9,20 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
-from geonet_model_semantic import *
 from geonet_test_depth import *
 from geonet_test_depth_detla import *
 from geonet_test_pose import *
 from geonet_test_flow import *
+
+from geonet_model_semantic import GeoNetModel
 from data_loader_semantic import DataLoader
 
 flags = tf.app.flags
 ####
 flags.DEFINE_boolean("save_intermedia",           False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
-flags.DEFINE_boolean("semantic_dataset_dir",        "", "Semantic dataset directory to impose delta training")
+flags.DEFINE_boolean("fix_posenet",                False, "whether to fix parameter of posenet")
+flags.DEFINE_string("semantic_dataset_dir",        "", "Semantic dataset directory to impose delta training")
 
 ####
 flags.DEFINE_string("mode",                         "", "(train_rigid, train_flow) or (test_depth, test_pose, test_flow)")
@@ -116,13 +118,16 @@ def train():
         if opt.mode == 'train_flow' and opt.flownet_type == "residual":
             print("\x1b[6;30;42m" + "finetune ResFlowNetS" + "\x1b[0m")
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
-            train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
+            train_vars = tf.compat.v1.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
             vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
         elif opt.delta_mode:
             # train second stage model in delta mode 
             print("\x1b[6;30;42m" + "Second stage training for geo_xyz " + "\x1b[0m")
-            # only choose depth_net vats, parameters in pose_net has been fixed.
-            train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="depth_net")
+            if opt.fix_posenet:
+                # only choose depth_net vats, parameters in pose_net has been fixed.
+                train_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope="depth_net")
+            else:
+                train_vars = [var for var in tf.compat.v1.trainable_variables()]
             # To load first stage's model by partially restoring models
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
         else:
@@ -178,6 +183,7 @@ def train():
 
             for var in train_vars:
                 print(var.name)
+
             print("parameter_count =", sess.run(parameter_count))
 
             if opt.init_ckpt_file != None:
@@ -200,6 +206,8 @@ def train():
                     fetches["pose"] = model.pred_poses # fetch pose
                     fetches["tgt_image"] = model.tgt_image # fetch tgt_image
                     fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack
+                    fetches["tgt_sem"] = model.tgt_sem
+                    fetches["src_sem_stack"] = model.src_sem_stack
                     
                     if opt.delta_mode:
                         fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
@@ -215,16 +223,22 @@ def train():
                     pose_save_dir = os.path.join(opt.log_savedir, "pose")
                     tgt_image_save_dir = os.path.join(opt.log_savedir, "tgt_image")
                     src_image_stack_save_dir = os.path.join(opt.log_savedir, "src_image_stack")
+                    tgt_sem_save_dir = os.path.join(opt.log_savedir, "tgt_sem")
+                    src_sem_stack_save_dir = os.path.join(opt.log_savedir, "src_sem_stack")
 
                     make_dir(depth_save_dir)
                     make_dir(pose_save_dir)
                     make_dir(tgt_image_save_dir)
                     make_dir(src_image_stack_save_dir)
+                    make_dir(tgt_sem_save_dir)
+                    make_dir(src_sem_stack_save_dir)
                  
                     np.save(os.path.join(depth_save_dir, save_tmp_name), results["depth"])
                     np.save(os.path.join(pose_save_dir, save_tmp_name), results["pose"])
                     np.save(os.path.join(tgt_image_save_dir, save_tmp_name), results["tgt_image"])
                     np.save(os.path.join(src_image_stack_save_dir, save_tmp_name), results["src_image_stack"])
+                    np.save(os.path.join(tgt_sem_save_dir, save_tmp_name), results["tgt_sem"])
+                    np.save(os.path.join(src_sem_stack_save_dir, save_tmp_name), results["src_sem_stack"])
 
                     if opt.delta_mode:
                         delta_save_dir = os.path.join(opt.log_savedir, "delta")

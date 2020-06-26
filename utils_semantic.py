@@ -102,6 +102,10 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
     # [4,3,53248]
     # NOTE: tg.matrix_inverse is deprecated.
     # cam_coords = tf.matmul(tf.matrix_inverse(intrinsics), pixel_coords) * depth
+    # tf.linalg.inv(intrinsics): K^-1
+    # pixel_coords: P_t
+    # depth: D_t(P_t)
+    # * depth (element-wise)
     cam_coords = tf.matmul(tf.linalg.inv(intrinsics), pixel_coords) * depth
 
     if is_homogeneous:
@@ -118,14 +122,26 @@ def to_mask_delta_xyz(mask_bool_coords, delta_xyz):
     mask_bool_coords: [4, 3, 128, 416]
     delta_xyz: [4, 3, 128, 316]
     """
-    # TODO:
-    print(mask_bool_coords[0, 0,:,:])
-    
-    # 1. convert the second channle values into 0, 1
-    # element-wise.  
-    # 2. masked_delta_xyz = tf.multiply(mask_bool_coords, delta_xyz)
+    # FIXME: is that correct?
+    one = tf.ones_like(mask_bool_coords)
+    zero = tf.zeros_like(mask_bool_coords)
 
-    return delta_xyz
+    binary_mask = tf.where(mask_bool_coords < 0.01, x=zero, y=one)
+
+    # a=tf.random.uniform([2,2])    	
+	# one = tf.ones_like(a)
+    # zero = tf.zeros_like(a)
+    # label = tf.where(a <0.5, x=zero, y=one)
+    # a: tf.Tensor(
+    #     [[0.25626993 0.53764176]
+    #     [0.27858937 0.92834556]], shape=(2, 2), dtype=float32)
+
+    # label: tf.Tensor(
+    #             [[0. 1.]
+    #             [0. 1.]], shape=(2, 2), dtype=float32)
+
+    # element-wise product
+    return tf.multiply(binary_mask, delta_xyz)
 
 
 def cam_add_delta(cam_coords, mask_bool_coords, delta_xyz, is_homogeneous=True):
@@ -235,7 +251,7 @@ def flow_warp(src_img, flow):
 
     return output_img
 
-def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
+def compute_rigid_flow(depth, binary_mask, delta_xyz, pose, intrinsics, reverse_pose=False):
     """Compute the rigid flow from target image plane to source image
 
     Args:
@@ -285,12 +301,14 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
         # cam_coords: [4, 3, 128, 416]                 
         cam_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
 
+        # actually, same operation like depth data
+        # binary_mask: (4, 128, 416) 
         # mask_bool_coords: ([4, 3, 128, 416] )
         # Convert a 2D binary mask into 3D binary mask
         # there are 3 (x,y,z) vars in the second channel of mask_bool_coords
         # only two values in each x, y, z
         # we use this to set a binary threshold mask of delta_xyz  
-        mask_bool_coords = pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=False)
+        mask_bool_coords = pixel2cam(binary_mask, pixel_coords, intrinsics, is_homogeneous=False)
         
         # cam_coords; [4, 3, 128, 416]
         # delta_xyz: [4, 128, 416, 3]

@@ -6,6 +6,7 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+
 from geonet_nets_semantic import *
 from utils_semantic import *
 
@@ -14,6 +15,7 @@ class GeoNetModel(object):
         self.opt = opt
         self.tgt_image = self.preprocess_image(tgt_image)             # (4, 128, 416, 3)
         self.src_image_stack = self.preprocess_image(src_image_stack) # (4, 128, 416, 6)
+
         # binary mask do not need preprocess
         self.tgt_sem = tgt_sem                                        # (4, 128, 416, 3)
         self.src_sem_stack = src_sem_stack                            # (4, 128, 416, 6)
@@ -34,7 +36,7 @@ class GeoNetModel(object):
         # self.tgt_image_pyramid: 
         # [(4, 128, 416, 3), (4, 64, 208, 3),  (4, 32, 104, 3),  (4, 16, 52, 3)]
         self.tgt_image_pyramid = self.scale_pyramid(self.tgt_image, opt.num_scales)
-        self.tgt_sem_pyramid = self.scale_pyramid(self.tgt_sem, opt.num_sclaes)
+        self.tgt_sem_pyramid = self.scale_pyramid(self.tgt_sem, opt.num_scales)
 
         # tile: duplicate first channel
         # [opt.num_source, 1, 1, 1] = [2,1,1,1]
@@ -43,8 +45,8 @@ class GeoNetModel(object):
         self.tgt_image_tile_pyramid = [tf.tile(img, [opt.num_source, 1, 1, 1]) \
                                       for img in self.tgt_image_pyramid]
 
-        self.tgt_sem_tile_pyramid = [tf.tile(img, [opt.num_source, 1, 1, 1])\
-                                    for img in self.tgt_sem_pyramid]
+        # self.tgt_sem_tile_pyramid = [tf.tile(img, [opt.num_source, 1, 1, 1])\
+        #                             for img in self.tgt_sem_pyramid]
 
         # src images concated along batch dimension
         if self.src_image_stack != None:
@@ -55,11 +57,11 @@ class GeoNetModel(object):
             # [(8, 128, 416, 3), (8, 64, 208, 3), (8, 32, 104, 3), (8, 16, 52, 3)]
             self.src_image_concat_pyramid = self.scale_pyramid(self.src_image_concat, opt.num_scales)
 
-        if self.src_sem_stack != None:
-            self.src_sem_concat = tf.concat([self.src_sem_stack[:,:,:,3*i:3*(i+1)] \
-                                    for i in range(opt.num_source)], axis=0)
+        # if self.src_sem_stack != None:
+        #     self.src_sem_concat = tf.concat([self.src_sem_stack[:,:,:,3*i:3*(i+1)] \
+        #                             for i in range(opt.num_source)], axis=0)
             
-            self.src_sem_concat_pyramid = self.scale_pyramid(self.src_sem_concat, opt.num_scales)
+        #     self.src_sem_concat_pyramid = self.scale_pyramid(self.src_sem_concat, opt.num_scales)
 
         if opt.add_dispnet:
             self.build_dispnet()
@@ -160,23 +162,39 @@ class GeoNetModel(object):
                 
                 # self.pred_depth:
                 # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
+
                 # self.pred_depth[s][:bs], bs 0:4: the whole batch of tgt
                 # tf.squeeze(): (4, 128, 416, 1) -> (4, 128, 416) 
 
                 # i=0, self.pred_poses[:,0,:]: tgt->src_1
                 # i=1, self.pred_poses[:,1,:]: tgt->src_2
 
+                # NOTE:
+                # only the tgt frame's depth is used to pxiel2cam
+                # so I only use the tgt frame's semantic binary mask to pixel2cam
+                # for the pixel region,:
+                    # if the pixel2cam(mask)==0, then the delta is useless in this region
+                    # else, the delta will be added into pixel2cam(depth) into this region
+
+                #  [(4, 128, 416, 3), (4, 64, 208, 3),  (4, 32, 104, 3),  (4, 16, 52, 3)]
+                # self.tgt_sem_pyramid[s][:,:,:,0] # only one channel (grayscale)
+
                 # fwd_rigid_flow: (4, 128, 416, 2)
                 fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
-                                delta_xyz_fwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], False)
-                    
+                                                    tf.cast(self.tgt_sem_pyramid[s][:,:,:,0], tf.float32),
+                                                    delta_xyz_fwd, 
+                                                    self.pred_poses[:,i,:], 
+                                                    self.intrinsics[:,s,:,:], False)
+
                 # backward: 
-                # i=0, src_1 -> tgt, src_1: 4:8
-                # i=1, src_2 -> tgt, src_2: 8:12
-                
+                # i=0, src_1 -> tgt, src_1: pred_depth[s][4:8]
+                # i=1, src_2 -> tgt, src_2: pred_depth[s][8:12]
                 # bwd_rigid_flow: (4, 128, 416, 2)
                 bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
-                                 delta_xyz_bwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], True)
+                                                    tf.cast(self.tgt_sem_pyramid[s][:,:,:,0], tf.float32),
+                                                    delta_xyz_bwd, 
+                                                    self.pred_poses[:,i,:], 
+                                                    self.intrinsics[:,s,:,:], True)
                 if not i:
                     fwd_rigid_flow_concat = fwd_rigid_flow
                     bwd_rigid_flow_concat = bwd_rigid_flow
