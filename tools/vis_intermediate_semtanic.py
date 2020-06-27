@@ -19,14 +19,13 @@ def vis_depth(base_path, vis_img, vis=False):
     print("depth_img: ", depth_img.shape)         # (12, 128, 416, 1)
     for i in range(depth_img.shape[0]):
         sig_depth = depth_img[i, :, :, 0] 
-        print(sig_depth.shape) # shape (128, 416)
+        # print(sig_depth.shape) # shape (128, 416)
         vis_save_path = os.path.join(vis_depth_dir, os.path.splitext(file_name)[0]+"-"+str(i)+".png")
 
         fig = plt.gcf()
-        plt.imshow(sig_depth, cmap="plasma")
+        plt.imshow(1.0/sig_depth, cmap="plasma")
         plt.show()
         fig.savefig(vis_save_path)
-    
 
 def vis_pose(base_path, vis_img, vis=False):
     vis_pose_dir = os.path.join(base_path, "vis_pose")
@@ -58,35 +57,35 @@ def vis_delta(base_path, vis_img, vis=False):
         sig_delta_concat = delta_img[i, :, :, :] 
         # print(sig_delta_concat.shape) # shape (128, 416, 12)
 
-        sig_delta_1 = sig_delta_concat[:,:,0:3]*255
-        norm_1 = mpl.colors.Normalize(vmin = np.min(sig_delta_1), vmax = np.max(sig_delta_1), clip = False)
+        sig_delta_1 = sig_delta_concat[:,:,0:3]
+        # norm_1 = mpl.colors.Normalize(vmin = np.min(sig_delta_1), vmax = np.max(sig_delta_1), clip = False)
         vis_save_path_1 = os.path.join(vis_delta_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-0-3"+".png")
         fig = plt.gcf()
-        plt.imshow(sig_delta_1,norm=norm_1)
+        plt.imshow(sig_delta_1/100)
         plt.show()
         fig.savefig(vis_save_path_1)
 
-        sig_delta_2 = sig_delta_concat[:,:,3:6]*255
-        norm_2 = mpl.colors.Normalize(vmin = np.min(sig_delta_2), vmax = np.max(sig_delta_2), clip = False)
+        sig_delta_2 = sig_delta_concat[:,:,3:6]
+        # norm_2 = mpl.colors.Normalize(vmin = np.min(sig_delta_2), vmax = np.max(sig_delta_2), clip = False)
         vis_save_path_2 = os.path.join(vis_delta_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-3-6"+".png")
         fig = plt.gcf()
-        plt.imshow(sig_delta_2, norm=norm_2)
+        plt.imshow(sig_delta_2/100)
         plt.show()
         fig.savefig(vis_save_path_2)
 
-        sig_delta_3 = sig_delta_concat[:,:,6:9]*255
-        norm_3 = mpl.colors.Normalize(vmin = np.min(sig_delta_3), vmax = np.max(sig_delta_3), clip = False)
+        sig_delta_3 = sig_delta_concat[:,:,6:9]
+        # norm_3 = mpl.colors.Normalize(vmin = np.min(sig_delta_3), vmax = np.max(sig_delta_3), clip = False)
         vis_save_path_3 = os.path.join(vis_delta_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-6-9"+".png")
         fig = plt.gcf()
-        plt.imshow(sig_delta_3, norm=norm_3)
+        plt.imshow(sig_delta_3/100)
         plt.show()
         fig.savefig(vis_save_path_3)
 
-        sig_delta_4 = sig_delta_concat[:,:,9:12]*255
-        norm_4 = mpl.colors.Normalize(vmin = np.min(sig_delta_4), vmax = np.max(sig_delta_4), clip = False)
+        sig_delta_4 = sig_delta_concat[:,:,9:12]
+        # norm_4 = mpl.colors.Normalize(vmin = np.min(sig_delta_4), vmax = np.max(sig_delta_4), clip = False)
         vis_save_path_4 = os.path.join(vis_delta_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-9-12"+".png")
         fig = plt.gcf()
-        plt.imshow(sig_delta_4, norm=norm_4)
+        plt.imshow(sig_delta_4/100)
         plt.show()
         fig.savefig(vis_save_path_4)
 
@@ -98,7 +97,7 @@ def vis_tgt(base_path, vis_img, vis=False):
     print("tgt_image: ", tgt_image.shape)         # (4, 128, 416, 3)
     for i in range(tgt_image.shape[0]):
         sig_tgt = tgt_image[i, :, :, :] 
-        print(sig_tgt.shape) # shape (128, 416, 3)
+        # print(sig_tgt.shape) # shape (128, 416, 3)
         vis_save_path = os.path.join(vis_tgt_dir, os.path.splitext(file_name)[0]+"-"+str(i)+".png")
 
         fig = plt.gcf()
@@ -115,7 +114,7 @@ def vis_tgt_sem(base_path, vis_img, vis=False):
     print("tgt_sem_image: ", tgt_sem_image.shape)         # (4, 128, 416, 3)
     for i in range(tgt_sem_image.shape[0]):
         sig_tgt = tgt_sem_image[i, :, :, :] 
-        print(sig_tgt.shape) # shape (128, 416, 3)
+        # print(sig_tgt.shape) # shape (128, 416, 3)
         vis_save_path = os.path.join(vis_tgt_sem_dir, os.path.splitext(file_name)[0]+"-"+str(i)+".png")
 
         fig = plt.gcf()
@@ -133,9 +132,9 @@ def vis_src(base_path, vis_img, vis=False):
 
     for i in range(src_image.shape[0]):
         sig_src_1 = src_image[i, :, :, :3] 
-        print(sig_src_1.shape) # shape (128, 416, 3)
+        # print(sig_src_1.shape) # shape (128, 416, 3)
         sig_src_2 = src_image[i, :, :, 3:6] 
-        print(sig_src_2.shape) # shape (128, 416, 3)
+        # print(sig_src_2.shape) # shape (128, 416, 3)
         vis_save_path_1 = os.path.join(vis_src_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-1.png")
         vis_save_path_2 = os.path.join(vis_src_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-2.png")
 
@@ -158,9 +157,9 @@ def vis_src_sem(base_path, vis_img, vis=False):
 
     for i in range(src_sem_image.shape[0]):
         sig_src_1 = src_sem_image[i, :, :, :3] 
-        print(sig_src_1.shape) # shape (128, 416, 3)
+        # print(sig_src_1.shape) # shape (128, 416, 3)
         sig_src_2 = src_sem_image[i, :, :, 3:6] 
-        print(sig_src_2.shape) # shape (128, 416, 3)
+        # print(sig_src_2.shape) # shape (128, 416, 3)
         vis_save_path_1 = os.path.join(vis_src_sem_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-1.png")
         vis_save_path_2 = os.path.join(vis_src_sem_dir, os.path.splitext(file_name)[0]+"-"+str(i)+"-2.png")
 
@@ -176,7 +175,7 @@ def vis_src_sem(base_path, vis_img, vis=False):
 
     
 if __name__ == "__main__":
-    base_path = os.path.join("/userhome/34/h3567721/projects/Depth/GeoNet/log/", "depth_geo_delta_two_stage_mask_tmp")
+    base_path = os.path.join("/userhome/34/h3567721/projects/Depth/GeoNet/log/", "depth_geo_delta_two_stage_mask_fix_pose_vis")
 
     tgt_path = os.path.join(base_path, "tgt_image")
     src_path = os.path.join(base_path, "src_image_stack")
@@ -189,7 +188,8 @@ if __name__ == "__main__":
     pose_path = os.path.join(base_path, "pose")
 
     # choose which layer will be visualized
-    vis_var = ["depth", "delta", "pose", "tgt", "src", "tgt_sem", "src_sem"]
+    # vis_var = ["depth", "delta", "pose", "tgt", "src", "tgt_sem", "src_sem"]
+    vis_var = ['delta']
 
     # depth img will always be visualized
     for file_name in os.listdir(depth_path):

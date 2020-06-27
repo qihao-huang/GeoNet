@@ -17,7 +17,7 @@ def make_dir(dir_path):
 
 if __name__ == "__main__":
     # base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/predictions"
-    # dir_name = "test_xyz_depth_delta_two_stage"
+    # dir_name = "test_depth_geo_delta_two_stage_mask_fix_pose"
 
     base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/GeoNet_models_and_predictions/predictions"
     dir_name = "depth_result"
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
         fig = plt.gcf()
 
-        plt.imshow(sig_depth, cmap='plasma')
+        plt.imshow(1.0/sig_depth, cmap='plasma')
         plt.axis("off")
         fig.set_size_inches(sig_depth.shape[1]/100.0, sig_depth.shape[0]/100.0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())

@@ -179,7 +179,7 @@ class GeoNetModel(object):
                 #  [(4, 128, 416, 3), (4, 64, 208, 3),  (4, 32, 104, 3),  (4, 16, 52, 3)]
                 # self.tgt_sem_pyramid[s][:,:,:,0] # only one channel (grayscale)
 
-                # fwd_rigid_flow: (4, 128, 416, 2)
+                # fwd_rigid_flow: (4,   128, 416, 2)
                 fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
                                                     tf.cast(self.tgt_sem_pyramid[s][:,:,:,0], tf.float32),
                                                     delta_xyz_fwd, 

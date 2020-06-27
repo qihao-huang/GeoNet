@@ -16,3 +16,19 @@ python geonet_main.py \
     --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_vis_two_stage" \
     --delta_mode \
     --save_intermedia
+
+python geonet_main_semantic.py \
+    --mode=train_rigid \
+    --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
+    --semantic_dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen_seg/mask" \
+    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_mask_fix_pose_vis" \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_mask_fix_pose/model-65000" \
+    --learning_rate=0.0002 \
+    --seq_length=3 \
+    --batch_size=4 \
+    --max_steps=350000 \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_mask_fix_pose_vis" \
+    --delta_mode \
+    --save_intermedia \
+    --fix_posenet \
+    --vis_intermediate 
