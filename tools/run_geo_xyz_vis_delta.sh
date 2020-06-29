@@ -16,6 +16,8 @@ python geonet_main.py \
     --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_vis_two_stage" \
     --delta_mode \
     --save_intermedia
+    
+# ---------------------------------------------------------------------------------------------------------------------------
 
 python geonet_main_semantic.py \
     --mode=train_rigid \

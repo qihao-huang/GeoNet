@@ -7,7 +7,7 @@ from geonet_model import *
 
 
 def test_depth_delta(opt):
-    # FIXME: only tested with eigen split
+    # NOTE: only tested with eigen split
     ##### load testing list #####
     with open('data/kitti/test_files_%s.txt' % opt.depth_test_split, 'r') as f:
         test_files = f.readlines()
@@ -19,8 +19,6 @@ def test_depth_delta(opt):
     print("test_files: ", len(test_files))
 
     # split the whole file into subsets
-
-
 
     ##### init #####
     input_uint8_tgt = tf.compat.v1.placeholder(tf.uint8, [opt.batch_size,
@@ -41,8 +39,6 @@ def test_depth_delta(opt):
     with tf.compat.v1.Session(config=config) as sess:
         saver.restore(sess, opt.init_ckpt_file)
         pred_all = []
-
-
 
         for t in range(0, len(test_files), opt.batch_size):
             if t % 100 == 0:

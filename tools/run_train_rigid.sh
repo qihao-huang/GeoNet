@@ -14,7 +14,7 @@ python geonet_main.py \
     --batch_size=4 \
     --max_steps=350001 \
     --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_3" \
-    --max_to_keep=40 
+    --max_to_keep=80
 
 # train pose, seq_length=5
 # python geonet_main.py \

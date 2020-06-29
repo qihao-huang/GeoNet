@@ -17,16 +17,17 @@ python kitti_eval/eval_depth.py \
     --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
     --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_depth_geo_delta_two_stage_mask_fix_pose/model-65000.npy"
 
-python geonet_main.py \
+# ---------------------------------------------------------------------------------------------------------------------------
+exp_name="depth_geo_delta_two_stage_mask_fix_pose"
+
+python test_metric_script.py \
     --mode=test_depth_delta \
     --dataset_dir=$user_path"/dataset/kitti/raw_data/" \
-    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_mask/model-80000" \
+    --ckpt_dir=$user_path"/projects/Depth/GeoNet/checkpoint/"$exp_name \
+    --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
     --batch_size=1 \
     --depth_test_split=eigen \
-    --output_dir=$user_path"/projects/Depth/GeoNet/predictions/test_depth_geo_delta_two_stage_mask" \
-    --delta_mode
+    --output_dir=$user_path"/projects/Depth/GeoNet/predictions/test_"$exp_name \
+    --delta_mode \
+    --seq_length=3  
 
-python kitti_eval/eval_depth.py \
-    --split=eigen \
-    --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
-    --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_depth_geo_delta_two_stage_mask/model-80000.npy"

@@ -14,8 +14,3 @@ python kitti_eval/eval_depth.py \
     --split=eigen \
     --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
     --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_depth_3/model-180000.npy"
-
-python kitti_eval/eval_depth.py \
-    --split=eigen \
-    --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
-    --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_depth/model-240000.npy"
