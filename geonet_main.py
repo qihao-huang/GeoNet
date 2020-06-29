@@ -238,7 +238,7 @@ def train():
 
                 if step % opt.save_ckpt_freq == 0:
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
-            
+
 def main(_):
     opt.num_source = opt.seq_length - 1  
     # depth: 3-1=2 or odometry: 5-1=4

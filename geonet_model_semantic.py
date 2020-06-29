@@ -147,6 +147,12 @@ class GeoNetModel(object):
         # build rigid flow (fwd: tgt->src, bwd: src->tgt)
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
+
+        # self.delta_xyz:     [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
+
+        # TODO: return mask_delta_xyz
+        self.mask_delta_xyz = [[],[],[],[]]
+
         for s in range(opt.num_scales):
             for i in range(opt.num_source):
                 
@@ -180,37 +186,52 @@ class GeoNetModel(object):
                 # self.tgt_sem_pyramid[s][:,:,:,0] # only one channel (grayscale)
 
                 # fwd_rigid_flow: (4,   128, 416, 2)
-                fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
+                fwd_rigid_flow, mask_delta_xyz_fwd = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
                                                     tf.cast(self.tgt_sem_pyramid[s][:,:,:,0], tf.float32),
                                                     delta_xyz_fwd, 
                                                     self.pred_poses[:,i,:], 
                                                     self.intrinsics[:,s,:,:], False)
+                
+                # mask_delta_xyz_fwd [4, 3, 128, 316] -> [4, 128, 416, 3] 
+                mask_delta_xyz_fwd = tf.transpose(mask_delta_xyz_fwd[:, :, :, :], [0, 2, 3, 1])
 
                 # backward: 
                 # i=0, src_1 -> tgt, src_1: pred_depth[s][4:8]
                 # i=1, src_2 -> tgt, src_2: pred_depth[s][8:12]
                 # bwd_rigid_flow: (4, 128, 416, 2)
-                bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
+                bwd_rigid_flow, mask_delta_xyz_bwd = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
                                                     tf.cast(self.tgt_sem_pyramid[s][:,:,:,0], tf.float32),
                                                     delta_xyz_bwd, 
                                                     self.pred_poses[:,i,:], 
                                                     self.intrinsics[:,s,:,:], True)
+
+                mask_delta_xyz_bwd = tf.transpose(mask_delta_xyz_bwd[:, :, :, :], [0, 2, 3, 1])
+
                 if not i:
                     fwd_rigid_flow_concat = fwd_rigid_flow
                     bwd_rigid_flow_concat = bwd_rigid_flow
+                    mask_delta_xyz_fwd_concat = mask_delta_xyz_fwd
+                    mask_delta_xyz_bwd_concat = mask_delta_xyz_bwd
+
                 else:
                     fwd_rigid_flow_concat = tf.concat([fwd_rigid_flow_concat, fwd_rigid_flow], axis=0)
                     bwd_rigid_flow_concat = tf.concat([bwd_rigid_flow_concat, bwd_rigid_flow], axis=0)
+                    mask_delta_xyz_fwd_concat = tf.concat([mask_delta_xyz_fwd_concat, mask_delta_xyz_fwd], axis=3)
+                    mask_delta_xyz_bwd_concat = tf.concat([mask_delta_xyz_bwd_concat, mask_delta_xyz_bwd], axis=3)
 
                 # fwd: concat tgt -> src_1 and tgt -> src_2 in axis = 0
                 # fwd_rigid_flow_concat: (8, 128, 416, 2)
 
             self.fwd_rigid_flow_pyramid.append(fwd_rigid_flow_concat)
-
             self.bwd_rigid_flow_pyramid.append(bwd_rigid_flow_concat)
         
             # self.fwd_rigid_flow_pyramid: 
             # [(8, 128, 416, 2), (8, 64, 208, 2), (8, 32, 104, 2), (8, 16, 52, 2)]
+
+            self.mask_delta_xyz[s] = tf.concat([mask_delta_xyz_fwd_concat, mask_delta_xyz_bwd_concat], axis=3)
+            # FIXME: error here, but dont worry, it's okay for vis.
+            # 0:3 fwd tgt>src_1, 3:6 bwd src_1->tgt
+            # 6:9 fwd tgt->src_1, 9:12 bwd src_1->tgt
 
         # warping by rigid flow
         self.fwd_rigid_warp_pyramid = [flow_warp(self.src_image_concat_pyramid[s], self.fwd_rigid_flow_pyramid[s]) \

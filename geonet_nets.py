@@ -78,6 +78,7 @@ def build_resnet50(opt, inputs, get_pred, is_training, var_scope):
                             normalizer_params=batch_norm_params,
                             weights_regularizer=slim.l2_regularizer(0.0001),
                             activation_fn=tf.nn.relu):
+            
             conv1 = conv(inputs, 64, 7, 2) # H/2  -   64D, 
             # inputs [12, 128, 416, 3] -> conv1: [12, 64, 208, 64]
     

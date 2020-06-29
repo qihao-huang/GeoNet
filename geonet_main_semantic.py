@@ -216,7 +216,7 @@ def train():
                     fetches["src_sem_stack"] = model.src_sem_stack
                     
                     if opt.delta_mode:
-                        fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
+                        fetches["delta_xyz"] = model.mask_delta_xyz[0] # fetch delta
 
                 if step % 100 == 0:
                     fetches["loss"] = loss

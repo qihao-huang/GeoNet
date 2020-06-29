@@ -98,7 +98,7 @@ class DataLoader(object):
             tgt_image = image_all[:, :, :, :3]  # (4,128,416,3)
             src_image_stack = image_all[:, :, :, 3:]  # (4,128,416,6)
 
-            # intrinsics_mscale (4,4,3,3)
+            # intrinsics_scale (4,4,3,3)
             intrinsics = self.get_multi_scale_intrinsics(
                 intrinsics, opt.num_scales)
         else:

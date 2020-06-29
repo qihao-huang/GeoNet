@@ -93,7 +93,6 @@ class GeoNetModel(object):
         
         # self.pred_disp:     [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
         # self.delta_xyz:     [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
-
         # build dispnet:
         if is_training and opt.delta_mode or opt.mode == "test_depth_delta":
             self.pred_disp, self.delta_xyz = disp_net(opt, self.dispnet_inputs)
@@ -126,21 +125,20 @@ class GeoNetModel(object):
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
         for s in range(opt.num_scales):
-            # for deltax_xyz:
-            # i=0: 0:3 -> fwd, 6:9 -> bwd
-            # i=1: 3:6 -> fwd, 9:12 -> bwd
+
             for i in range(opt.num_source):
-                
                 # self.pred_depth:
                 # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
 
-                # self.pred_depth[s(0:3)][:bs], 0:4: the whole batch of tgt
-                # tf.squeeze(): (4, 128, 416, 1) -> (4, 128, 416) 
-
-                # self.pred_poses[:,0,:]: tgt->src_1
-                # self.pred_poses[:,1,:]: tgt->src_2
+                # self.pred_poses[:,i=0,:]: tgt->src_1
+                # self.pred_poses[:,i=1,:]: tgt->src_2
                 
                 # fwd_rigid_flow: (4, 128, 416, 2)
+                # for deltax_xyz:
+                # i=0: 0:3 -> fwd, 6:9 -> bwd (tgt->src1, src1->tgt)
+                # i=1: 3:6 -> fwd, 9:12 -> bwd (tgt->src2, src2->tgt
+                # self.delta_xyz:     [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
+
                 if opt.delta_mode:
                     delta_xyz_fwd = self.delta_xyz[s][:,:,:,3*(i):3*(i+1)]
                     delta_xyz_bwd = self.delta_xyz[s][:,:,:,3*(i+2):3*(i+3)]
@@ -148,6 +146,8 @@ class GeoNetModel(object):
                     delta_xyz_fwd = None
                     delta_xyz_bwd = None
                 
+                # self.pred_depth[s(0:3)][:bs], 0:4: the whole batch of tgt
+                # tf.squeeze(): (4, 128, 416, 1) -> (4, 128, 416) 
                 fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
                                 delta_xyz_fwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], False)
                     
@@ -157,6 +157,7 @@ class GeoNetModel(object):
                 # bwd_rigid_flow: (4, 128, 416, 2)
                 bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
                                  delta_xyz_bwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], True)
+                
                 if not i:
                     fwd_rigid_flow_concat = fwd_rigid_flow
                     bwd_rigid_flow_concat = bwd_rigid_flow
@@ -274,6 +275,7 @@ class GeoNetModel(object):
         
         rigid_warp_loss = 0
         disp_smooth_loss = 0
+       
         flow_warp_loss = 0
         flow_smooth_loss = 0
         flow_consistency_loss = 0

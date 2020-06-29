@@ -27,7 +27,7 @@ python geonet_main_semantic.py \
     --seq_length=3 \
     --batch_size=4 \
     --max_steps=350000 \
-    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_mask_fix_pose_vis" \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_mask_fix_pose_vis_2" \
     --delta_mode \
     --save_intermedia \
     --fix_posenet \

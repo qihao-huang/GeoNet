@@ -59,3 +59,5 @@ def test_depth(opt):
 
         np.save(opt.output_dir + '/' +
                 os.path.basename(opt.init_ckpt_file), pred_all)
+
+        # np: (697, 128, 416)

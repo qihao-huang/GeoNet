@@ -117,6 +117,7 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
 
     return cam_coords
 
+
 def to_mask_delta_xyz(mask_bool_coords, delta_xyz):
     """
     mask_bool_coords: [4, 3, 128, 416]
@@ -152,10 +153,10 @@ def cam_add_delta(cam_coords, mask_bool_coords, delta_xyz, is_homogeneous=True):
     delta_xyz = tf.transpose(delta_xyz[:, :, :, :], [0, 3, 1, 2])
 
     # NOTE: use semantic mask here to extract only useful delta
-    delta_xyz = to_mask_delta_xyz(mask_bool_coords, delta_xyz)
+    mask_delta_xyz = to_mask_delta_xyz(mask_bool_coords, delta_xyz)
 
     # [4, 3, 128*416]
-    delta_xyz = tf.reshape(delta_xyz, [batch, 3, -1])
+    delta_xyz = tf.reshape(mask_delta_xyz, [batch, 3, -1])
 
     # cam_coords [4,3,128,416] -> [4, 3, 128*416]
     cam_coords = tf.reshape(cam_coords, [batch, 3, -1])
@@ -172,7 +173,7 @@ def cam_add_delta(cam_coords, mask_bool_coords, delta_xyz, is_homogeneous=True):
     #  else: cam_coords_xyz [4, 3, 128*416] -> [4, 3, 128, 416]
     cam_coords_xyz = tf.reshape(cam_coords_xyz, [batch, -1, height, width])
 
-    return cam_coords_xyz
+    return cam_coords_xyz, mask_delta_xyz
 
 
 def cam2pixel(cam_coords, proj):
@@ -313,7 +314,7 @@ def compute_rigid_flow(depth, binary_mask, delta_xyz, pose, intrinsics, reverse_
         # cam_coords; [4, 3, 128, 416]
         # delta_xyz: [4, 128, 416, 3]
         # cam_coords_delta: [4, 4, 128, 416]
-        cam_coords_delta = cam_add_delta(cam_coords, mask_bool_coords, delta_xyz, is_homogeneous=True)
+        cam_coords_delta, mask_delta_xyz = cam_add_delta(cam_coords, mask_bool_coords, delta_xyz, is_homogeneous=True)
 
     # Construct a 4x4 intrinsic matrix
     filler = tf.constant([0.0, 0.0, 0.0, 1.0], shape=[1, 1, 4])
@@ -333,7 +334,7 @@ def compute_rigid_flow(depth, binary_mask, delta_xyz, pose, intrinsics, reverse_
 
     rigid_flow = src_pixel_coords - tgt_pixel_coords
 
-    return rigid_flow
+    return rigid_flow, mask_delta_xyz
 
 
 def bilinear_sampler(imgs, coords):

@@ -175,7 +175,7 @@ def vis_src_sem(base_path, vis_img, vis=False):
 
     
 if __name__ == "__main__":
-    base_path = os.path.join("/userhome/34/h3567721/projects/Depth/GeoNet/log/", "depth_geo_delta_two_stage_mask_fix_pose_vis")
+    base_path = os.path.join("/userhome/34/h3567721/projects/Depth/GeoNet/log/", "depth_geo_delta_two_stage_mask_fix_pose_vis_2")
 
     tgt_path = os.path.join(base_path, "tgt_image")
     src_path = os.path.join(base_path, "src_image_stack")
@@ -188,8 +188,8 @@ if __name__ == "__main__":
     pose_path = os.path.join(base_path, "pose")
 
     # choose which layer will be visualized
-    # vis_var = ["depth", "delta", "pose", "tgt", "src", "tgt_sem", "src_sem"]
-    vis_var = ['delta']
+    vis_var = ["depth", "delta", "pose", "tgt", "src", "tgt_sem", "src_sem"]
+    # vis_var = ['delta']
 
     # depth img will always be visualized
     for file_name in os.listdir(depth_path):
