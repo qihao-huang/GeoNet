@@ -78,7 +78,6 @@ def train():
     np.random.seed(seed)
     random.seed(seed)
 
-    print("\x1b[6;30;42m" + "# flags" + "\x1b[0m")
     pp = pprint.PrettyPrinter()
     pp.pprint(flags.FLAGS.__flags)
 
@@ -86,8 +85,6 @@ def train():
     make_dir(opt.log_savedir)
 
     with tf.Graph().as_default():
-        # Data Loader
-        print("\x1b[6;30;42m" + "# Data Loader" + "\x1b[0m")
         loader = DataLoader(opt)
 
         # tgt_image:       (4,128,416,3)
@@ -95,8 +92,6 @@ def train():
         # intrinsics:      (4,4,3,3)
         tgt_image, src_image_stack, intrinsics = loader.load_train_val_batch("train")
 
-        # Build Model
-        print("\x1b[6;30;42m" + "# Build Model" + "\x1b[0m")
         model = GeoNetModel(opt, tgt_image, src_image_stack, intrinsics)
         loss = model.total_loss
         tf.compat.v1.summary.scalar("loss", loss)
@@ -108,61 +103,41 @@ def train():
                      'depth_net/depth_net/delta_mod/conv_3//weights:0', 'depth_net/depth_net/delta_mod/conv_3//biases:0',
                      'depth_net/depth_net/delta_mod/conv_4//weights:0', 'depth_net/depth_net/delta_mod/conv_4//biases:0']
 
-        # Train Op
-        print("\x1b[6;30;42m" + "# Train Op" + "\x1b[0m")
         if opt.mode == 'train_flow' and opt.flownet_type == "residual":
-            print("\x1b[6;30;42m" + "finetune ResFlowNetS" + "\x1b[0m")
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
             train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
             vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
         elif opt.delta_mode:
             # train second stage model in delta mode 
-            print("\x1b[6;30;42m" + "Second stage training for geo_xyz " + "\x1b[0m")
             # only choose depth_net vats, parameters in pose_net has been fixed.
             train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="depth_net")
             # To load first stage's model by partially restoring models
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
         else:
-            print("\x1b[6;30;42m" + "First stage training for geo_xyz" + "\x1b[0m")
             train_vars = [var for var in tf.compat.v1.trainable_variables()]
             vars_to_restore = slim.get_model_variables()
 
-        # vars_to_restore
-        print("\x1b[6;30;42m" + "# vars_to_restore" + "\x1b[0m")
         for v in vars_to_restore:
             print(v)
-
-        print("\x1b[6;30;42m" + "# train_vars" + "\x1b[0m")
+        
         for v in train_vars:
             print(v)
 
-        # If train from checkpoint file
         if opt.init_ckpt_file != None:
             init_assign_op, init_feed_dict = slim.assign_from_checkpoint(opt.init_ckpt_file, vars_to_restore)
 
-        print("\x1b[6;30;42m" + "# Optimizer" + "\x1b[0m")
         optim = tf.compat.v1.train.AdamOptimizer(opt.learning_rate, 0.9)
         train_op = slim.learning.create_train_op(loss, optim, variables_to_train=train_vars)
 
-        # Global Step
-        print("\x1b[6;30;42m" + "# Global Step" + "\x1b[0m")
         global_step = tf.Variable(0, name='global_step', trainable=False)
         incr_global_step = tf.compat.v1.assign(global_step, global_step+1)
 
-        # Parameter Count
-        print("\x1b[6;30;42m" + "# Parameter Count" + "\x1b[0m")
         parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) for v in train_vars])
 
-        # Saver
-        print("\x1b[6;30;42m" + "# Saver" + "\x1b[0m")
         saver = tf.compat.v1.train.Saver([var for var in tf.compat.v1.model_variables()] +
                                [global_step],
                                max_to_keep=opt.max_to_keep)
-                               # default: recent 20 checkpoint files
-
-        # Session
-        print("\x1b[6;30;42m" + "# Session" + "\x1b[0m")
-        # tf.train.MonitoredTrainingSession
+                
         sv = tf.train.Supervisor(logdir=opt.checkpoint_dir,
                                  save_summaries_secs=0,
                                  saver=None)
@@ -171,8 +146,6 @@ def train():
         config.gpu_options.allow_growth = True
 
         with sv.managed_session(config=config) as sess:
-            print("\x1b[6;30;42m" + "# Trainable variables" + "\x1b[0m")
-
             for var in train_vars:
                 print(var.name)
             print("parameter_count =", sess.run(parameter_count))
@@ -180,9 +153,7 @@ def train():
             if opt.init_ckpt_file != None:
                 sess.run(init_assign_op, init_feed_dict)
 
-            print("------------------------")
-            print("\x1b[6;30;42m" + "# entering into iterations" + "\x1b[0m")
-            
+
             start_time = time.time()
 
             for step in range(1, opt.max_steps):
@@ -238,6 +209,10 @@ def train():
 
                 if step % opt.save_ckpt_freq == 0:
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
+                    # TODO: add to tensorboard?
+                    # eval depth
+                    # save npy
+                    # save metric results to log
 
 def main(_):
     opt.num_source = opt.seq_length - 1  
