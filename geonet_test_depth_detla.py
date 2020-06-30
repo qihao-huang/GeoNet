@@ -95,7 +95,7 @@ def test_depth_delta(opt):
 
     # GeoNetModel(opt, tgt_image, src_image_stack, intrinsics):
     model = GeoNetModel(opt, input_uint8_tgt, input_uint8_src, input_float32_src)
-    fetches = {"depth": model.pred_depth[0]} # (3, 128, 416, 1)
+    fetches = {"depth": model.pred_depth[0]} # (3, 128, 416, 1) ,since bs=1, so is 3 in first channel
 
     saver = tf.compat.v1.train.Saver([var for var in tf.compat.v1.model_variables()])
     config = tf.compat.v1.ConfigProto()
@@ -106,10 +106,11 @@ def test_depth_delta(opt):
         saver.restore(sess, opt.init_ckpt_file)
         pred_all = []
         
-        if opt.save_test_intermediate:
+        if opt.save_intermediate:
             fetch_tgt_image = []
             fetch_src_image_stack = []
             fetch_delta_xyz = []
+
             fetch_fwd_rigid_warp = []
             fetch_bwd_rigid_warp = []
             fetch_fwd_rigid_error = []
@@ -135,7 +136,7 @@ def test_depth_delta(opt):
                 file_path = test_files[idx]
                 img_dir_path, img_full_name = os.path.split(file_path)
                 img_name = os.path.splitext(img_full_name)[0] # '0000000608'
-                img_tgt_idx = int(img_name)
+                img_tgt_idx = int(img_name) # 608
 
                 if img_tgt_idx == 0: #"0000000000"
                     img_src_1_idx = int(img_name) #"0000000000"
@@ -145,11 +146,11 @@ def test_depth_delta(opt):
                     # 2011_09_26/2011_09_26_drive_0059_sync/image_02/data/
                     # 0000000372.png
                     # There is no 0000000373 image
-                    img_src_1_idx = int(img_name)-1 # '0000000371'
-                    img_src_2_idx = int(img_name)   # '0000000372'
+                    img_src_1_idx = int(img_name)-1 # 371
+                    img_src_2_idx = int(img_name)   # 372
                 else:
-                    img_src_1_idx = int(img_name)-1 # '0000000607'
-                    img_src_2_idx = int(img_name)+1 # '0000000609'
+                    img_src_1_idx = int(img_name)-1 # 607
+                    img_src_2_idx = int(img_name)+1 # 609
                     
                 img_tgt_idx_path = os.path.join(img_dir_path, str(img_tgt_idx).zfill(len(img_name))+".png")
                 img_src_1_idx_path = os.path.join(img_dir_path, str(img_src_1_idx).zfill(len(img_name))+".png")
@@ -166,25 +167,25 @@ def test_depth_delta(opt):
                 scaled_im_tgt = raw_im_tgt.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
                 scaled_im_src_1 = raw_im_src_1.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
                 scaled_im_src_2 = raw_im_src_2.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
-
                 scaled_im_src_concat = np.concatenate((scaled_im_src_1, scaled_im_src_2), axis=2)
 
-                zoom_x = opt.img_width/scaled_im_tgt.size[0] # 416/1242
-                zoom_y = opt.img_height/scaled_im_tgt.size[1] # 128/375
+                zoom_x = opt.img_width/raw_im_tgt.size[0] # 416/1242
+                zoom_y = opt.img_height/raw_im_tgt.size[1] # 128/375
 
                 tgt_drive = img_dir_path.split("/")[-3]
                 tgt_cid = img_dir_path.split("/")[-2].split("_")[-1]
                 tgt_frame_id = img_name
-                intrinsics = load_intrinsics_raw(opt, tgt_drive, tgt_cid, tgt_frame_id)
-                intrinsics = scale_intrinsics(intrinsics, zoom_x, zoom_y)
-                intrinsics = get_multi_scale_intrinsics(intrinsics, opt.num_scales)
+
+                intrinsics = load_intrinsics_raw(opt, tgt_drive, tgt_cid, tgt_frame_id) # (3, 3)
+                intrinsics = scale_intrinsics(intrinsics, zoom_x, zoom_y) # (3, 3)
+                intrinsics = get_multi_scale_intrinsics(intrinsics, opt.num_scales) # (4, 3, 3)
 
                 inputs_tgt[b] = np.array(scaled_im_tgt)
                 inputs_src[b] = np.array(scaled_im_src_concat)
                 # intrinsic of src images and tgt image are same in one scene event
                 inputs_intrinsic[b] = intrinsics # (4,3,3)
 
-            if opt.save_test_intermediate:
+            if opt.save_intermediate:
                 fetches["tgt_image"] = model.tgt_image # fetch tgt_image
                 fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack    
                 fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
@@ -203,24 +204,24 @@ def test_depth_delta(opt):
                 if idx >= len(test_files):
                     break
 
-                fetch_tgt_depth = pred['depth'][b, :, :, 0] #fetch target only
+                fetch_tgt_depth = pred['depth'][b, :, :, 0] # (3, 128, 416, 1)
                 pred_all.append(fetch_tgt_depth)
 
-                if opt.save_test_intermediate:
-                    fetch_tgt_image.append(pred['tgt_image'][b, :, :, :]) # (128, 416, 3)
-                    fetch_src_image_stack.append(pred['src_image_stack'][b, :, :, :]) # (128, 416, 6)
-                    fetch_delta_xyz.append(pred['delta_xyz'][b, :, :, :]) # (128, 416, 12)
-                    fetch_fwd_rigid_warp.append(pred['fwd_rigid_warp'][b, :, :, :])
-                    fetch_bwd_rigid_warp.append(pred['bwd_rigid_warp'][b, :, :, :])
-                    fetch_fwd_rigid_error.append(pred['fwd_rigid_error'][b, :, :, :])
-                    fetch_bwd_rigid_error.append(pred['bwd_rigid_error'][b, :, :, :])
-                    fetch_fwd_rigid_flow.append(fetches["fwd_rigid_flow"][b, :, :, :])
-                    fetch_bwd_rigid_flow.append(fetches["bwd_rigid_flow"][b, :, :, :])
+                if opt.save_intermediate:
+                    fetch_tgt_image.append(pred['tgt_image'][b, :, :, :]) # (1, 128, 416, 3) -> (128, 416, 3))
+                    fetch_src_image_stack.append(pred['src_image_stack'][b, :, :, :]) # (1, 128, 416, 6) -> (128, 416, 6))
+                    fetch_delta_xyz.append(pred['delta_xyz'][b, :, :, :]) # (1, 128, 416, 12) -> (128, 416, 12)
+                    fetch_fwd_rigid_warp.append(pred['fwd_rigid_warp'][:, :, :, :]) # (2, 128, 416, 3)
+                    fetch_bwd_rigid_warp.append(pred['bwd_rigid_warp'][:, :, :, :]) # (2, 128, 416, 3)
+                    fetch_fwd_rigid_error.append(pred['fwd_rigid_error'][:, :, :, :]) # (2, 128, 416, 3)
+                    fetch_bwd_rigid_error.append(pred['bwd_rigid_error'][:, :, :, :]) # (2, 128, 416, 3)
+                    fetch_fwd_rigid_flow.append(fetches["fwd_rigid_flow"][:, :, :, :]) # (2, 128, 416, 2)
+                    fetch_bwd_rigid_flow.append(fetches["bwd_rigid_flow"][:, :, :, :]) # (2, 128, 416, 2)
                                     
         # npy file will be saved locally
         np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)
 
-        if opt.save_test_intermediate:
+        if opt.save_intermediate:
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-tgt_image"), fetch_tgt_image)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-src_image_stack"), fetch_src_image_stack)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-delta_xyz"), fetch_delta_xyz)
@@ -230,4 +231,3 @@ def test_depth_delta(opt):
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_error"), fetch_bwd_rigid_error)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_flow"), fetch_fwd_rigid_flow)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_flow"), fetch_bwd_rigid_flow)
-
