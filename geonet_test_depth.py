@@ -37,7 +37,6 @@ def test_depth(opt):
         if opt.save_test_intermediate:
             fetch_tgt_image = []
             fetch_src_image_stack = []
-            fetch_delta_xyz = []
             fetch_fwd_rigid_warp = []
             fetch_bwd_rigid_warp = []
             fetch_fwd_rigid_error = []
@@ -65,7 +64,6 @@ def test_depth(opt):
             if opt.save_test_intermediate:
                 fetches["tgt_image"] = model.tgt_image # fetch tgt_image
                 fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack    
-                fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
                 fetches["fwd_rigid_warp"] = model.fwd_rigid_warp_pyramid[0]
                 fetches["bwd_rigid_warp"] = model.bwd_rigid_warp_pyramid[0]
                 fetches["fwd_rigid_error"] = model.fwd_rigid_error_pyramid[0]
@@ -82,7 +80,6 @@ def test_depth(opt):
 
                 if opt.save_test_intermediate:
                     fetch_tgt_image.append(pred['tgt_image'][b, :, :, :]) # (128, 416, 3)
-                    fetch_src_image_stack.append(pred['src_image_stack'][b, :, :, :]) # (128, 416, 6)
                     fetch_fwd_rigid_warp.append(pred['fwd_rigid_warp'][b, :, :, :])
                     fetch_bwd_rigid_warp.append(pred['bwd_rigid_warp'][b, :, :, :])
                     fetch_fwd_rigid_error.append(pred['fwd_rigid_error'][b, :, :, :])
@@ -98,7 +95,6 @@ def test_depth(opt):
         if opt.save_test_intermediate:
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-tgt_image"), fetch_tgt_image)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-src_image_stack"), fetch_src_image_stack)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-delta_xyz"), fetch_delta_xyz)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_warp"), fetch_fwd_rigid_warp)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_warp"), fetch_bwd_rigid_warp)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_error"), fetch_fwd_rigid_error)
