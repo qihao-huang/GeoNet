@@ -104,7 +104,6 @@ class GeoNetModel(object):
             # bring improvement in depth estimation, but not included in our paper.
             self.pred_disp = [self.spatial_normalize(disp) for disp in self.pred_disp]
 
-        # inverse the predicted depth
         self.pred_depth = [1./d for d in self.pred_disp]
 
     def build_posenet(self):
@@ -427,7 +426,7 @@ class GeoNetModel(object):
             return None
         else:
             image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-            # TODO: why? *2-1 in preprocess
+            # [0,1] -> [0,2] -> [-1,1]
             return image * 2. -1.
 
     def deprocess_image(self, image):

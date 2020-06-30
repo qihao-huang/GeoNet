@@ -19,6 +19,7 @@ from data_loader import DataLoader
 flags = tf.app.flags
 ####
 flags.DEFINE_boolean("save_intermedia",           False, "whether to save the intermediate vars")
+flags.DEFINE_boolean("save_test_intermediate",    False, "whether to save the test intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
 
 ####
@@ -224,7 +225,7 @@ def main(_):
     opt.add_dispnet = opt.add_flownet and opt.flownet_type == 'residual' \
         or opt.mode in ['train_rigid', 'test_depth', 'test_depth_delta']
     opt.add_posenet = opt.add_flownet and opt.flownet_type == 'residual' \
-        or opt.mode in ['train_rigid', 'test_pose']
+        or opt.mode in ['train_rigid', 'test_pose', 'test_depth_delta']
 
     if opt.mode in ['train_rigid', 'train_flow']:
         train()

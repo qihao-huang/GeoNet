@@ -309,7 +309,7 @@ def eval_depth_metric(opt, pred_depths, f):
             compute_errors(gt_depth[mask], pred_depth[mask])
 
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
-    f.write("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f} \n".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))
+    f.write("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))
     print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))    
 
 def main(_):
@@ -327,19 +327,22 @@ def main(_):
 
     cktp_dict = locate_cktp(opt, opt.ckpt_dir)
     f = open(os.path.join(opt.output_dir, "metric_results.txt"), "a")
-    f.write("---------------------------------------------------------")
-    f.write("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10} \n".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
+    f.write("--------------------------------------------------------------------------------------------------")
+    f.write("\n")
+    f.write("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
+    f.write("\n")
+    f.close()
+
     for ckpt, ckpt_path in cktp_dict.items():
         print(ckpt_path)
-        f.write("---------------------------------------------------------")
+        f = open(os.path.join(opt.output_dir, "metric_results.txt"), "a")
+        f.write("--------------------------------------------------------------------------------------------------")
         f.write(ckpt_path)
         opt.init_ckpt_file = ckpt_path
         tf.reset_default_graph()
         model_output_npy = test_depth_delta(opt)
         eval_depth_metric(opt, model_output_npy, f)
-       
-
-    f.close()
+        f.close()
 
 if __name__ == "__main__":
     tf.compat.v1.app.run()
