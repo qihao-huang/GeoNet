@@ -22,7 +22,6 @@ flags = tf.app.flags
 flags.DEFINE_boolean("save_intermedia",           False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
 flags.DEFINE_boolean("fix_posenet",                False, "whether to fix parameter of posenet")
-flags.DEFINE_boolean("vis_intermediate",           False, "whether to vis the intermediate")
 flags.DEFINE_string("semantic_dataset_dir",        "", "Semantic dataset directory to impose delta training")
 
 ####
@@ -121,7 +120,7 @@ def train():
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
             train_vars = tf.compat.v1.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
             vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
-        elif opt.delta_mode and not opt.vis_intermediate:
+        elif opt.delta_mode and not opt.save_intermediate:
             # train second stage model in delta mode 
             print("\x1b[6;30;42m" + "Second stage training for geo_xyz " + "\x1b[0m")
             if opt.fix_posenet:
@@ -131,8 +130,8 @@ def train():
                 train_vars = [var for var in tf.compat.v1.trainable_variables()]
             # To load first stage's model by partially restoring models
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
-        elif opt.vis_intermediate:
-            print("\x1b[6;30;42m" + "vis_intermediate" + "\x1b[0m")
+        elif opt.save_intermediate:
+            print("\x1b[6;30;42m" + "save_intermediate" + "\x1b[0m")
             train_vars = [var for var in tf.compat.v1.trainable_variables()]
             vars_to_restore = slim.get_model_variables()
         else:
@@ -207,7 +206,7 @@ def train():
                         "incr_global_step": incr_global_step,
                     }
 
-                if opt.save_intermedia:
+                if opt.save_intermediate:
                     fetches["depth"] = model.pred_depth[0] # fetch depth
                     fetches["pose"] = model.pred_poses # fetch pose
                     fetches["tgt_image"] = model.tgt_image # fetch tgt_image

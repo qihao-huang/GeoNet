@@ -115,7 +115,7 @@ def test_depth_delta(opt):
             fetch_fwd_rigid_error = []
             fetch_bwd_rigid_error = []
             fetch_fwd_rigid_flow = []
-            fetcg_bwd_rigid_flow = []
+            fetch_bwd_rigid_flow = []
 
         for t in range(0, len(test_files), opt.batch_size):
             if t % 100 == 0:
@@ -192,8 +192,8 @@ def test_depth_delta(opt):
                 fetches["bwd_rigid_warp"] = model.bwd_rigid_warp_pyramid[0]
                 fetches["fwd_rigid_error"] = model.fwd_rigid_error_pyramid[0]
                 fetches["bwd_rigid_error"] = model.bwd_rigid_error_pyramid[0]
-                fetches["fetch_fwd_rigid_flow"] = model.fwd_rigid_flow_pyramid[0]
-                fetches["fetcg_bwd_rigid_flow"] = model.bwd_rigid_flow_pyramid[0]
+                fetches["fwd_rigid_flow"] = model.fwd_rigid_flow_pyramid[0]
+                fetches["bwd_rigid_flow"] = model.bwd_rigid_flow_pyramid[0]
             
             pred = sess.run(fetches, feed_dict={input_uint8_tgt: inputs_tgt, input_uint8_src: inputs_src, input_float32_src: inputs_intrinsic})
 
@@ -214,8 +214,8 @@ def test_depth_delta(opt):
                     fetch_bwd_rigid_warp.append(pred['bwd_rigid_warp'][b, :, :, :])
                     fetch_fwd_rigid_error.append(pred['fwd_rigid_error'][b, :, :, :])
                     fetch_bwd_rigid_error.append(pred['bwd_rigid_error'][b, :, :, :])
-                    fetch_fwd_rigid_flow.append(fetches["fetch_fwd_rigid_flow"])
-                    fetcg_bwd_rigid_flow.append(fetches["fetcg_bwd_rigid_flow"])
+                    fetch_fwd_rigid_flow.append(fetches["fwd_rigid_flow"][b, :, :, :])
+                    fetch_bwd_rigid_flow.append(fetches["bwd_rigid_flow"][b, :, :, :])
                                     
         # npy file will be saved locally
         np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)
@@ -229,5 +229,5 @@ def test_depth_delta(opt):
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_error"), fetch_fwd_rigid_error)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_error"), fetch_bwd_rigid_error)
             np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_flow"), fetch_fwd_rigid_flow)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_flow"), fetcg_bwd_rigid_flow)
+            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_flow"), fetch_bwd_rigid_flow)
 

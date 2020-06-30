@@ -18,7 +18,7 @@ from data_loader import DataLoader
 
 flags = tf.app.flags
 ####
-flags.DEFINE_boolean("save_intermedia",           False, "whether to save the intermediate vars")
+flags.DEFINE_boolean("save_intermediate",           False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("save_test_intermediate",    False, "whether to save the test intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
 
@@ -108,12 +108,19 @@ def train():
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
             train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
             vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
-        elif opt.delta_mode:
+        elif opt.delta_mode and not opt.save_intermediate:
             # train second stage model in delta mode 
             # only choose depth_net vats, parameters in pose_net has been fixed.
-            train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="depth_net")
-            # To load first stage's model by partially restoring models
+            if opt.fix_posenet:
+                train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="depth_net")
+                # To load first stage's model by partially restoring models
+            else:
+                train_vars = [var for var in tf.compat.v1.trainable_variables()]
+            
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
+        elif opt.save_intermediate:
+            train_vars = [var for var in tf.compat.v1.trainable_variables()]
+            vars_to_restore = slim.get_model_variables()
         else:
             train_vars = [var for var in tf.compat.v1.trainable_variables()]
             vars_to_restore = slim.get_model_variables()
@@ -164,11 +171,17 @@ def train():
                         "incr_global_step": incr_global_step,
                     }
 
-                if opt.save_intermedia:
+                if opt.save_intermediate:
                     fetches["depth"] = model.pred_depth[0] # fetch depth
                     fetches["pose"] = model.pred_poses # fetch pose
                     fetches["tgt_image"] = model.tgt_image # fetch tgt_image
                     fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack
+                    fetches["fwd_rigid_warp"] = model.fwd_rigid_warp_pyramid[0]
+                    fetches["bwd_rigid_warp"] = model.bwd_rigid_warp_pyramid[0]
+                    fetches["fwd_rigid_error"] = model.fwd_rigid_error_pyramid[0]
+                    fetches["bwd_rigid_error"] = model.bwd_rigid_error_pyramid[0]
+                    fetches["fwd_rigid_flow"] = model.fwd_rigid_flow_pyramid[0]
+                    fetches["bwd_rigid_flow"] = model.bwd_rigid_flow_pyramid[0]
                     
                     if opt.delta_mode:
                         fetches["delta_xyz"] = model.delta_xyz[0] # fetch delta
@@ -178,22 +191,45 @@ def train():
 
                 results = sess.run(fetches)
                 
-                if opt.save_intermedia:
+                if opt.save_intermediate:
                     save_tmp_name = str(time.time()) # '1585880463.4654446'
                     depth_save_dir = os.path.join(opt.log_savedir, "depth")
                     pose_save_dir = os.path.join(opt.log_savedir, "pose")
                     tgt_image_save_dir = os.path.join(opt.log_savedir, "tgt_image")
                     src_image_stack_save_dir = os.path.join(opt.log_savedir, "src_image_stack")
 
+                    fwd_rigid_warp_save_dir = os.path.join(opt.log_savedir, "fwd_rigid_warp")
+                    bwd_rigid_warp_save_dir = os.path.join(opt.log_savedir, "bwd_rigid_warp")  
+
+                    fwd_rigid_error_save_dir = os.path.join(opt.log_savedir, "fwd_rigid_error")
+                    bwd_rigid_error_save_dir = os.path.join(opt.log_savedir, "bwd_rigid_error")
+
+                    fwd_rigid_flow_save_dir = os.path.join(opt.log_savedir, "fwd_rigid_flow")
+                    bwd_rigid_flow_save_dir = os.path.join(opt.log_savedir, "bwd_rigid_flow")
+
                     make_dir(depth_save_dir)
                     make_dir(pose_save_dir)
                     make_dir(tgt_image_save_dir)
                     make_dir(src_image_stack_save_dir)
+
+                    make_dir(fwd_rigid_warp_save_dir)
+                    make_dir(bwd_rigid_warp_save_dir)
+                    make_dir(fwd_rigid_error_save_dir)
+                    make_dir(bwd_rigid_error_save_dir)
+                    make_dir(fwd_rigid_flow_save_dir)
+                    make_dir(bwd_rigid_flow_save_dir)
                  
                     np.save(os.path.join(depth_save_dir, save_tmp_name), results["depth"])
                     np.save(os.path.join(pose_save_dir, save_tmp_name), results["pose"])
                     np.save(os.path.join(tgt_image_save_dir, save_tmp_name), results["tgt_image"])
                     np.save(os.path.join(src_image_stack_save_dir, save_tmp_name), results["src_image_stack"])
+
+                    np.save(os.path.join(fwd_rigid_warp_save_dir, save_tmp_name), results["fwd_rigid_warp"])
+                    np.save(os.path.join(bwd_rigid_warp_save_dir, save_tmp_name), results["bwd_rigid_warp"])
+                    np.save(os.path.join(fwd_rigid_error_save_dir, save_tmp_name), results["fwd_rigid_error"])
+                    np.save(os.path.join(bwd_rigid_error_save_dir, save_tmp_name), results["bwd_rigid_error"])
+                    np.save(os.path.join(fwd_rigid_flow_save_dir, save_tmp_name), results["fwd_rigid_flow"])
+                    np.save(os.path.join(bwd_rigid_flow_save_dir, save_tmp_name), results["bwd_rigid_flow"])
 
                     if opt.delta_mode:
                         delta_save_dir = os.path.join(opt.log_savedir, "delta")
@@ -210,10 +246,6 @@ def train():
 
                 if step % opt.save_ckpt_freq == 0:
                     saver.save(sess, os.path.join(opt.checkpoint_dir, 'model'), global_step=step)
-                    # TODO: add to tensorboard?
-                    # eval depth
-                    # save npy
-                    # save metric results to log
 
 def main(_):
     opt.num_source = opt.seq_length - 1  
