@@ -123,6 +123,7 @@ class GeoNetModel(object):
         # build rigid flow (fwd: tgt->src, bwd: src->tgt)
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
+        
         for s in range(opt.num_scales):
 
             for i in range(opt.num_source):

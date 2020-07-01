@@ -45,6 +45,7 @@ def test_depth(opt):
                 idx = t + b
                 if idx >= len(test_files):
                     break
+                
                 fh = open(test_files[idx], 'r')
                 raw_im = pil.open(fh)
                 scaled_im = raw_im.resize(

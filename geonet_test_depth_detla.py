@@ -4,6 +4,7 @@ import numpy as np
 import os
 import PIL.Image as pil
 from geonet_model import *
+import time
 
 def scale_intrinsics(mat, sx, sy):
     # K = | fx   0   cx| = | fx*scale_x   0            cx*scale_x|
@@ -53,9 +54,6 @@ def load_intrinsics_raw(opt, drive, cid, frame_id):
 
     filedata = read_raw_calib_file(calib_file)
     P_rect = np.reshape(filedata['P_rect_' + cid], (3, 4))
-    # array([[7.215377e+02, 0.000000e+00, 6.095593e+02, 4.485728e+01],
-    #        [0.000000e+00, 7.215377e+02, 1.728540e+02, 2.163791e-01],
-    #        [0.000000e+00, 0.000000e+00, 1.000000e+00, 2.745884e-03]]))
 
     intrinsics = P_rect[:3, :3]
 
@@ -78,6 +76,11 @@ def get_multi_scale_intrinsics(intrinsics, num_scales):
 
     return intrinsics_mscale
 
+
+def make_dir(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
 def test_depth_delta(opt):
     # NOTE: only tested with eigen split
     ##### load testing list #####
@@ -87,6 +90,17 @@ def test_depth_delta(opt):
 
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
+
+    make_dir(os.path.join(opt.output_dir, "depth"))
+    make_dir(os.path.join(opt.output_dir, "tgt_image"))
+    make_dir(os.path.join(opt.output_dir, "src_image_stack"))
+    make_dir(os.path.join(opt.output_dir, "delta_xyz"))
+    make_dir(os.path.join(opt.output_dir, "fwd_rigid_warp"))
+    make_dir(os.path.join(opt.output_dir, "bwd_rigid_warp"))
+    make_dir(os.path.join(opt.output_dir, "fwd_rigid_error"))
+    make_dir(os.path.join(opt.output_dir, "bwd_rigid_error"))
+    make_dir(os.path.join(opt.output_dir, "fwd_rigid_flow"))
+    make_dir(os.path.join(opt.output_dir, "bwd_rigid_flow"))
 
     ##### init #####
     input_uint8_tgt = tf.compat.v1.placeholder(tf.uint8, [opt.batch_size, opt.img_height, opt.img_width, 3], name='raw_tgt_input')
@@ -196,38 +210,48 @@ def test_depth_delta(opt):
                 fetches["fwd_rigid_flow"] = model.fwd_rigid_flow_pyramid[0]
                 fetches["bwd_rigid_flow"] = model.bwd_rigid_flow_pyramid[0]
             
+            # NOTE: save_intermediate: need intinsic to save error and warp
             pred = sess.run(fetches, feed_dict={input_uint8_tgt: inputs_tgt, input_uint8_src: inputs_src, input_float32_src: inputs_intrinsic})
 
             # NOTE: only test with batch_size=1, so b=0
-            for b in range(opt.batch_size): 
-                idx = t + b
-                if idx >= len(test_files):
-                    break
+            fetch_tgt_depth = pred['depth'] # (3, 128, 416, 1)
+            pred_all.append(fetch_tgt_depth)
 
-                fetch_tgt_depth = pred['depth'][b, :, :, 0] # (3, 128, 416, 1)
-                pred_all.append(fetch_tgt_depth)
+            if opt.save_intermediate:
+                file_name = str(time.time())
+                
+                np.save(os.path.join(opt.output_dir, "depth", file_name), pred['depth'])
+                np.save(os.path.join(opt.output_dir, "tgt_image", file_name), pred['tgt_image'])
+                np.save(os.path.join(opt.output_dir, "src_image_stack", file_name), pred['src_image_stack'])
+                np.save(os.path.join(opt.output_dir, "delta_xyz", file_name), pred['delta_xyz'])
+                # FIXME: warp error: possible reason intrinsic or pose
+                np.save(os.path.join(opt.output_dir, "fwd_rigid_warp", file_name), pred['fwd_rigid_warp'])
+                np.save(os.path.join(opt.output_dir, "bwd_rigid_warp", file_name), pred['bwd_rigid_warp'])
+                np.save(os.path.join(opt.output_dir, "fwd_rigid_error", file_name), pred['fwd_rigid_error'])
+                np.save(os.path.join(opt.output_dir, "bwd_rigid_error", file_name), pred['bwd_rigid_error'])
+                np.save(os.path.join(opt.output_dir, "fwd_rigid_flow", file_name), pred['fwd_rigid_flow'])
+                np.save(os.path.join(opt.output_dir, "bwd_rigid_flow", file_name), pred['bwd_rigid_flow'])
 
-                if opt.save_intermediate:
-                    fetch_tgt_image.append(pred['tgt_image'][b, :, :, :]) # (1, 128, 416, 3) -> (128, 416, 3))
-                    fetch_src_image_stack.append(pred['src_image_stack'][b, :, :, :]) # (1, 128, 416, 6) -> (128, 416, 6))
-                    fetch_delta_xyz.append(pred['delta_xyz'][b, :, :, :]) # (1, 128, 416, 12) -> (128, 416, 12)
-                    fetch_fwd_rigid_warp.append(pred['fwd_rigid_warp'][:, :, :, :]) # (2, 128, 416, 3)
-                    fetch_bwd_rigid_warp.append(pred['bwd_rigid_warp'][:, :, :, :]) # (2, 128, 416, 3)
-                    fetch_fwd_rigid_error.append(pred['fwd_rigid_error'][:, :, :, :]) # (2, 128, 416, 3)
-                    fetch_bwd_rigid_error.append(pred['bwd_rigid_error'][:, :, :, :]) # (2, 128, 416, 3)
-                    fetch_fwd_rigid_flow.append(fetches["fwd_rigid_flow"][:, :, :, :]) # (2, 128, 416, 2)
-                    fetch_bwd_rigid_flow.append(fetches["bwd_rigid_flow"][:, :, :, :]) # (2, 128, 416, 2)
-                                    
+                # fetch_tgt_image.append(pred['tgt_image']) # (1, 128, 416, 3) -> (128, 416, 3))
+                # fetch_src_image_stack.append(pred['src_image_stack'])# (1, 128, 416, 6) -> (128, 416, 6))
+                # fetch_delta_xyz.append(pred['delta_xyz']) # (1, 128, 416, 12) -> (128, 416, 12)
+                # fetch_fwd_rigid_warp.append(pred['fwd_rigid_warp']) # (2, 128, 416, 3)
+                # fetch_bwd_rigid_warp.append(pred['bwd_rigid_warp']) # (2, 128, 416, 3)
+                # fetch_fwd_rigid_error.append(pred['fwd_rigid_error']) # (2, 128, 416, 3)
+                # fetch_bwd_rigid_error.append(pred['bwd_rigid_error']) # (2, 128, 416, 3)
+                # fetch_fwd_rigid_flow.append(fetches["fwd_rigid_flow"]) # (2, 128, 416, 2)
+                # fetch_bwd_rigid_flow.append(fetches["bwd_rigid_flow"]) # (2, 128, 416, 2)
+                                
         # npy file will be saved locally
-        np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)
+        # np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)
 
-        if opt.save_intermediate:
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-tgt_image"), fetch_tgt_image)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-src_image_stack"), fetch_src_image_stack)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-delta_xyz"), fetch_delta_xyz)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_warp"), fetch_fwd_rigid_warp)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_warp"), fetch_bwd_rigid_warp)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_error"), fetch_fwd_rigid_error)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_error"), fetch_bwd_rigid_error)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_flow"), fetch_fwd_rigid_flow)
-            np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_flow"), fetch_bwd_rigid_flow)
+        # if opt.save_intermediate:
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-tgt_image"), fetch_tgt_image)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-src_image_stack"), fetch_src_image_stack)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-delta_xyz"), fetch_delta_xyz)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_warp"), fetch_fwd_rigid_warp)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_warp"), fetch_bwd_rigid_warp)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_error"), fetch_fwd_rigid_error)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_error"), fetch_bwd_rigid_error)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_flow"), fetch_fwd_rigid_flow)
+        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_flow"), fetch_bwd_rigid_flow)

@@ -35,8 +35,6 @@ class DataLoader(object):
         # cam_paths_queue = tf.data.Dataset.from_tensor_slices(file_list['cam_file_list'])
 
         # Load images
-        # UPGRADE:
-        # img_reader = tf.data.Dataset.map()
         img_reader = tf.WholeFileReader()
         _, image_contents = img_reader.read(image_paths_queue)
         image_seq = tf.image.decode_jpeg(image_contents)
@@ -47,19 +45,15 @@ class DataLoader(object):
             image_seq, opt.img_height, opt.img_width, opt.num_source)
 
         # Load camera intrinsics
-        # UPGRADE:
-        # cam_reader = tf.data.TextLineDataset()
         cam_reader = tf.TextLineReader()
         _, raw_cam_contents = cam_reader.read(cam_paths_queue)
 
         rec_def = []
         for i in range(9):
             rec_def.append([1.])
-
         # rec_def: [[1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0]]
-
-        raw_cam_vec = tf.io.decode_csv(raw_cam_contents,
-                                    record_defaults=rec_def)
+        
+        raw_cam_vec = tf.io.decode_csv(raw_cam_contents, record_defaults=rec_def)
         raw_cam_vec = tf.stack(raw_cam_vec)
         intrinsics = tf.reshape(raw_cam_vec, [3, 3])
 

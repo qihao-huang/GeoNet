@@ -254,11 +254,50 @@ def get_delta_xyz(opt, x, sc):
 
     # Attention: we don't use sigmoid activation since it maps to (0,1)
     # delta_xyz = conv(restack_x, 12, 3, 1, activation_fn=None, normalizer_fn=None)
+
     p = np.floor((3 - 1) / 2).astype(np.int32)
     p_x = tf.pad(restack_x, [[0, 0], [p, p], [p, p], [0, 0]])
     # default stride=1, default padding="SAME" for slim.conv2d()
-    delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=None, normalizer_fn=None, scope=sc)
+
+    # delta_xyz: (4, 128, 416, 12)
+    # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=None, normalizer_fn=None, scope=sc)
+
+    delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', 
+                                activation_fn=None, 
+                                normalizer_fn=None,
+                                normalizer_params=None,
+                                weights_initializer=tf.zeros_initializer(),
+                                weights_regularizer=None,
+                                biases_initializer=tf.zeros_initializer(),
+                                biases_regularizer=None,
+                                scope=sc)
+
+                            # scope definition of posenet conv2d
+                            # normalizer_fn=slim.batch_norm,
+                            # normalizer_params=batch_norm_params,
+                            # weights_regularizer=slim.l2_regularizer(0.0001),
+                            # activation_fn=tf.nn.relu):
+    # convolution(inputs,
+    #       num_outputs,
+    #       kernel_size,
+    #       stride=1,
+    #       padding='SAME',
+    #       data_format=None,
+    #       rate=1,
+    #       activation_fn=nn.relu,
+    #       normalizer_fn=None,
+    #       normalizer_params=None,
+    #       weights_initializer=initializers.xavier_initializer(),
+    #       weights_regularizer=None,
+    #       biases_initializer=init_ops.zeros_initializer(),
+    #       biases_regularizer=None,
+    #       reuse=None,
+    #       variables_collections=None,
+    #       outputs_collections=None,
+    #       trainable=True,
+    #       scope=None):
     
+    #TODO: 5*delta_xyz + 0.01, shall we change?
     return DISP_SCALING_RESNET50 * delta_xyz + 0.01
 
 def get_disp_resnet50(x):

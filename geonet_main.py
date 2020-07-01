@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 import os
-
 import time
 import random
 import pprint
@@ -18,9 +17,9 @@ from data_loader import DataLoader
 
 flags = tf.app.flags
 ####
-flags.DEFINE_boolean("save_intermediate",           False, "whether to save the intermediate vars")
-flags.DEFINE_boolean("save_test_intermediate",    False, "whether to save the test intermediate vars")
+flags.DEFINE_boolean("save_intermediate",         False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
+flags.DEFINE_boolean("fix_posenet",               False, "whether to fix the posenet")
 
 ####
 flags.DEFINE_string("mode",                         "", "(train_rigid, train_flow) or (test_depth, test_pose, test_flow)")
@@ -118,6 +117,14 @@ def train():
                 train_vars = [var for var in tf.compat.v1.trainable_variables()]
             
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
+
+        elif opt.delta_mode and opt.save_intermediate:
+            if opt.fix_posenet:
+                train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="depth_net")
+                # To load first stage's model by partially restoring models
+            else:
+                train_vars = [var for var in tf.compat.v1.trainable_variables()]
+            vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
         elif opt.save_intermediate:
             train_vars = [var for var in tf.compat.v1.trainable_variables()]
             vars_to_restore = slim.get_model_variables()
@@ -160,7 +167,6 @@ def train():
 
             if opt.init_ckpt_file != None:
                 sess.run(init_assign_op, init_feed_dict)
-
 
             start_time = time.time()
 

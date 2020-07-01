@@ -6,21 +6,61 @@ user_path="/userhome/34/h3567721"
 python geonet_main.py \
     --mode=train_rigid \
     --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
-    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_fix_pose_2" \
+    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_delta_init_0" \
     --learning_rate=0.0002 \
     --seq_length=3 \
     --batch_size=4 \
-    --max_steps=350001 \
-    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_fix_pose_2" \
+    --max_steps=1500001 \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_delta_init_0" \
     --delta_mode \
-    --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/checkpoint_depth/model-240000" \
-    --fix_posenet \
-    --max_to_keep=80
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet-ori/checkpoint/checkpoint_depth/model-150000" \
+    --max_to_keep=40 \
+    --save_intermediate
 
-    # two stage training strategy:
-    #   1. tain the rigid to provide constraints/prior for the next stage
-    #   2. load the model weight's without delta arch., then re-train the other stuff
-    #          - fix pose vars'
+python geonet_main.py \
+    --mode=train_rigid \
+    --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
+    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_delta_init_0_fix_pose" \
+    --learning_rate=0.0002 \
+    --seq_length=3 \
+    --batch_size=4 \
+    --max_steps=1500001 \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_delta_init_0_fix_pose" \
+    --delta_mode \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet-ori/checkpoint/checkpoint_depth/model-150000" \
+    --fix_posenet \
+    --max_to_keep=40 \
+    --save_intermediate
+
+
+python geonet_main.py \
+    --mode=train_rigid \
+    --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
+    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_4" \
+    --learning_rate=0.0001 \
+    --seq_length=3 \
+    --batch_size=4 \
+    --max_steps=1500001 \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_4" \
+    --delta_mode \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet-ori/checkpoint/checkpoint_depth/model-150000" \
+    --max_to_keep=40 \
+    --save_intermediate
+
+python geonet_main.py \
+    --mode=train_rigid \
+    --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
+    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_fix_pose_4" \
+    --learning_rate=0.0001 \
+    --seq_length=3 \
+    --batch_size=4 \
+    --max_steps=1500001 \
+    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_fix_pose_4" \
+    --delta_mode \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet-ori/checkpoint/checkpoint_depth/model-150000" \
+    --fix_posenet \
+    --max_to_keep=40 \
+    --save_intermediate
 
 # ---------------------------------------------------------------------------------------------------------------------------
 

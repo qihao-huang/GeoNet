@@ -9,11 +9,9 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 from geonet_model import *
-from geonet_test_depth import *
-from geonet_test_depth_detla import *
-from geonet_test_pose import *
-from geonet_test_flow import *
 from data_loader import DataLoader
+
+import PIL.Image as pil
 
 import argparse
 from kitti_eval.depth_evaluation_utils import *
@@ -102,7 +100,7 @@ def convert_disps_to_depths_stereo(gt_disparities, pred_depths):
     
     return gt_depths, pred_depths_resized, pred_disparities_resized
 
-def test_depth_delta(opt):
+def test_depth_all(opt):
     # NOTE: only tested with eigen split
 
     ##### load testing list #####
@@ -124,6 +122,7 @@ def test_depth_delta(opt):
 
     # GeoNetModel(opt, tgt_image, src_image_stack, intrinsics):
     model = GeoNetModel(opt, input_uint8_tgt, input_uint8_src, None)
+
     fetches = {"depth": model.pred_depth[0]} # (3, 128, 416, 1)
 
     saver = tf.compat.v1.train.Saver([var for var in tf.compat.v1.model_variables()])
@@ -152,60 +151,55 @@ def test_depth_delta(opt):
                 idx = t + b
                 if idx >= len(test_files):
                     break
+                
+                # path/to/2011_09_26/2011_09_26_drive_0036_sync/image_02/data/0000000608.png
+                file_path = test_files[idx]
+                img_dir_path, img_full_name = os.path.split(file_path)
+                # focus on 3 frames first
+                img_name = os.path.splitext(img_full_name)[0] # '0000000608'
 
-                try:
-                    # path/to/2011_09_26/2011_09_26_drive_0036_sync/image_02/data/0000000608.png
-                    file_path = test_files[idx]
-                    img_dir_path, img_full_name = os.path.split(file_path)
-                    # focus on 3 frames first
-                    img_name = os.path.splitext(img_full_name)[0] # '0000000608'
-
-                    img_tgt_idx = int(img_name)
+                img_tgt_idx = int(img_name)
 
 
-                    if img_tgt_idx == 0: #"0000000000"
-                        img_src_1_idx = int(img_name) #"0000000000"
-                        img_src_2_idx = int(img_name)+1 #"00000000001"
-                    elif int(img_name)+1 >= len(os.listdir(img_dir_path)):
-                        # /userhome/34/h3567721/dataset/kitti/raw_data/
-                        # 2011_09_26/2011_09_26_drive_0059_sync/image_02/data/
-                        # 0000000372.png
-                        # There is no 0000000373 image
-                        img_src_1_idx = int(img_name)-1 # '0000000371'
-                        img_src_2_idx = int(img_name)   # '0000000372'
-                    else:
-                        img_src_1_idx = int(img_name)-1 # '0000000607'
-                        img_src_2_idx = int(img_name)+1 # '0000000609'
-                        
-                    img_tgt_idx_path = os.path.join(img_dir_path, str(img_tgt_idx).zfill(len(img_name))+".png")
-                    img_src_1_idx_path = os.path.join(img_dir_path, str(img_src_1_idx).zfill(len(img_name))+".png")
-                    img_src_2_idx_path = os.path.join(img_dir_path, str(img_src_2_idx).zfill(len(img_name))+".png")
+                if img_tgt_idx == 0: #"0000000000"
+                    img_src_1_idx = int(img_name) #"0000000000"
+                    img_src_2_idx = int(img_name)+1 #"00000000001"
+                elif int(img_name)+1 >= len(os.listdir(img_dir_path)):
+                    # /userhome/34/h3567721/dataset/kitti/raw_data/
+                    # 2011_09_26/2011_09_26_drive_0059_sync/image_02/data/
+                    # 0000000372.png
+                    # There is no 0000000373 image
+                    img_src_1_idx = int(img_name)-1 # '0000000371'
+                    img_src_2_idx = int(img_name)   # '0000000372'
+                else:
+                    img_src_1_idx = int(img_name)-1 # '0000000607'
+                    img_src_2_idx = int(img_name)+1 # '0000000609'
+                    
+                img_tgt_idx_path = os.path.join(img_dir_path, str(img_tgt_idx).zfill(len(img_name))+".png")
+                img_src_1_idx_path = os.path.join(img_dir_path, str(img_src_1_idx).zfill(len(img_name))+".png")
+                img_src_2_idx_path = os.path.join(img_dir_path, str(img_src_2_idx).zfill(len(img_name))+".png")
 
-                    fh_tgt = open(img_tgt_idx_path, 'r')
-                    fh_src_1 = open(img_src_1_idx_path, 'r')
-                    fh_src_2 = open(img_src_2_idx_path, 'r')
-                    # may fail if the idx < 0 or exceeds than range
-                    # then print error to skip that tgt frame
+                fh_tgt = open(img_tgt_idx_path, 'r')
+                fh_src_1 = open(img_src_1_idx_path, 'r')
+                fh_src_2 = open(img_src_2_idx_path, 'r')
+                # may fail if the idx < 0 or exceeds than range
+                # then print error to skip that tgt frame
 
-                    raw_im_tgt = pil.open(fh_tgt)
-                    raw_im_src_1 = pil.open(fh_src_1)
-                    raw_im_src_2 = pil.open(fh_src_2)
+                raw_im_tgt = pil.open(fh_tgt)
+                raw_im_src_1 = pil.open(fh_src_1)
+                raw_im_src_2 = pil.open(fh_src_2)
 
-                    scaled_im_tgt = raw_im_tgt.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
-                    scaled_im_src_1 = raw_im_src_1.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
-                    scaled_im_src_2 = raw_im_src_2.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
+                scaled_im_tgt = raw_im_tgt.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
+                scaled_im_src_1 = raw_im_src_1.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
+                scaled_im_src_2 = raw_im_src_2.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
 
-                    scaled_im_src_concat = np.concatenate((scaled_im_src_1, scaled_im_src_2), axis=2)
+                scaled_im_src_concat = np.concatenate((scaled_im_src_1, scaled_im_src_2), axis=2)
 
-                    inputs_tgt[b] = np.array(scaled_im_tgt)
-                    inputs_src[b] = np.array(scaled_im_src_concat)
+                inputs_tgt[b] = np.array(scaled_im_tgt)
+                inputs_src[b] = np.array(scaled_im_src_concat)
 
-                except Exception as e:
-                    print(e)
-
-            pred = sess.run(fetches, feed_dict={input_uint8_tgt: inputs_tgt, input_uint8_src: inputs_src})
-            # feed_dict: __init__(self, opt, tgt_image, src_image_stack, intrinsics)
-
+                pred = sess.run(fetches, feed_dict={input_uint8_tgt: inputs_tgt, input_uint8_src: inputs_src})
+            
             # NOTE: only test with batch_size=1, b=0
             # So don't worry about this function
             for b in range(opt.batch_size): 
@@ -310,6 +304,7 @@ def eval_depth_metric(opt, pred_depths, f):
 
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
     f.write("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))
+    f.write("\n")
     print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))    
 
 def main(_):
@@ -324,6 +319,7 @@ def main(_):
     opt.add_posenet = opt.add_flownet and opt.flownet_type == 'residual' \
         or opt.mode in ['train_rigid', 'test_pose']
     
+    make_dir(opt.output_dir)
 
     cktp_dict = locate_cktp(opt, opt.ckpt_dir)
     f = open(os.path.join(opt.output_dir, "metric_results.txt"), "a")
@@ -337,10 +333,12 @@ def main(_):
         print(ckpt_path)
         f = open(os.path.join(opt.output_dir, "metric_results.txt"), "a")
         f.write("--------------------------------------------------------------------------------------------------")
+        f.write("\n")
         f.write(ckpt_path)
+        f.write("\n")
         opt.init_ckpt_file = ckpt_path
         tf.reset_default_graph()
-        model_output_npy = test_depth_delta(opt)
+        model_output_npy = test_depth_all(opt)
         eval_depth_metric(opt, model_output_npy, f)
         f.close()
 

@@ -15,8 +15,8 @@ python geonet_main.py \
     --max_steps=350000 \
     --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_vis_tmp" \
     --delta_mode \
-    --save_intermedia
-    
+    --save_intermediate
+
 python geonet_main.py \
     --mode=train_rigid \
     --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
