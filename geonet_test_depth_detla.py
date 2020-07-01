@@ -6,58 +6,16 @@ import PIL.Image as pil
 from geonet_model import *
 import time
 
-def scale_intrinsics(mat, sx, sy):
-    # K = | fx   0   cx| = | fx*scale_x   0            cx*scale_x|
-    #     |  0  fy   cy|   |  0           fy*scale_y   cy*scale_y|
-    #     |  0   0    1|   |  0           0            1         |
-    out = np.copy(mat)
-    out[0,0] *= sx
-    out[0,2] *= sx
-    out[1,1] *= sy
-    out[1,2] *= sy
+def make_dir(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
 
-    return out
-
-def read_raw_calib_file(filepath):
-    # From https://github.com/utiasSTARS/pykitti/blob/master/pykitti/utils.py
-    """Read in a calibration file and parse into a dictionary."""
-    data = {}
-
-    with open(filepath, 'r') as f:
-        for line in f.readlines():
-            key, value = line.split(':', 1)
-            # The only non-float values in these files are dates, which
-            # we don't care about anyway
-            try:
-                data[key] = np.array([float(x) for x in value.split()])
-            except ValueError:
-                pass
-    
-    return data
-    
 def make_intrinsics_matrix(fx, fy, cx, cy):
-    # Assumes batch input
-    # K = | fx   0   cx|
-    #     |  0  fy   cy|
-    #     |  0   0    1|
+    r1 = [fx, 0., cx]
+    r2 = [0., fy, cy]
+    r3 = [0., 0., 1.]
 
-    r1 = np.array([fx, 0., cx])
-    r2 = np.array([0., fy, cy])
-    r3 = np.array([0., 0., 1.])
-    intrinsics = np.stack([r1, r2, r3], axis=1)  # (3,3)
-
-    return intrinsics
-
-def load_intrinsics_raw(opt, drive, cid, frame_id):
-    date = drive[:10]
-    calib_file = os.path.join(opt.dataset_dir, date, 'calib_cam_to_cam.txt')
-
-    filedata = read_raw_calib_file(calib_file)
-    P_rect = np.reshape(filedata['P_rect_' + cid], (3, 4))
-
-    intrinsics = P_rect[:3, :3]
-
-    return intrinsics
+    return np.array([r1,r2,r3])
 
 def get_multi_scale_intrinsics(intrinsics, num_scales):
     # num_scales = 4
@@ -77,12 +35,9 @@ def get_multi_scale_intrinsics(intrinsics, num_scales):
     return intrinsics_mscale
 
 
-def make_dir(dir_path):
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
 def test_depth_delta(opt):
     # NOTE: only tested with eigen split
+
     ##### load testing list #####
     with open('data/kitti/test_files_%s.txt' % opt.depth_test_split, 'r') as f:
         test_files = f.readlines()
@@ -146,58 +101,33 @@ def test_depth_delta(opt):
                 if idx >= len(test_files):
                     break
 
-                # path/to/2011_09_26/2011_09_26_drive_0036_sync/image_02/data/0000000608.png
+                # "2011_09_26/2011_09_26_drive_0036_sync/image_02/data/0000000608.png"
                 file_path = test_files[idx]
                 img_dir_path, img_full_name = os.path.split(file_path)
                 img_name = os.path.splitext(img_full_name)[0] # '0000000608'
-                img_tgt_idx = int(img_name) # 608
 
-                if img_tgt_idx == 0: #"0000000000"
-                    img_src_1_idx = int(img_name) #"0000000000"
-                    img_src_2_idx = int(img_name)+1 #"00000000001"
-                elif int(img_name)+1 >= len(os.listdir(img_dir_path)):
-                    # /userhome/34/h3567721/dataset/kitti/raw_data/
-                    # 2011_09_26/2011_09_26_drive_0059_sync/image_02/data/
-                    # 0000000372.png
-                    # There is no 0000000373 image
-                    img_src_1_idx = int(img_name)-1 # 371
-                    img_src_2_idx = int(img_name)   # 372
-                else:
-                    img_src_1_idx = int(img_name)-1 # 607
-                    img_src_2_idx = int(img_name)+1 # 609
-                    
-                img_tgt_idx_path = os.path.join(img_dir_path, str(img_tgt_idx).zfill(len(img_name))+".png")
-                img_src_1_idx_path = os.path.join(img_dir_path, str(img_src_1_idx).zfill(len(img_name))+".png")
-                img_src_2_idx_path = os.path.join(img_dir_path, str(img_src_2_idx).zfill(len(img_name))+".png")
+                img_path = os.path.join(img_dir_path, img_name+".jpg")
+                cam_txt = os.path.join(img_dir_path, img_name+"_cam.txt")
 
-                fh_tgt = open(img_tgt_idx_path, 'r')
-                fh_src_1 = open(img_src_1_idx_path, 'r')
-                fh_src_2 = open(img_src_2_idx_path, 'r')
+                fh = open(img_path, 'r')
+                raw_im = pil.open(fh)
 
-                raw_im_tgt = pil.open(fh_tgt)
-                raw_im_src_1 = pil.open(fh_src_1)
-                raw_im_src_2 = pil.open(fh_src_2)
+                im_src_1 = np.array(raw_im.crop((0,0,opt.img_width ,opt.img_height)))
+                im_tgt = np.array(raw_im.crop((opt.img_width, 0, opt.img_width *2, opt.img_height)))
+                im_src_2 = np.array(raw_im.crop((opt.img_width *2, 0, opt.img_width *3, opt.img_height)))
 
-                scaled_im_tgt = raw_im_tgt.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
-                scaled_im_src_1 = raw_im_src_1.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
-                scaled_im_src_2 = raw_im_src_2.resize((opt.img_width, opt.img_height), pil.ANTIALIAS)
-                scaled_im_src_concat = np.concatenate((scaled_im_src_1, scaled_im_src_2), axis=2)
+                with open(cam_txt, 'r') as f:
+                    intrinsirc_raw = f.readline()
 
-                zoom_x = opt.img_width/raw_im_tgt.size[0] # 416/1242
-                zoom_y = opt.img_height/raw_im_tgt.size[1] # 128/375
+                intrinsirc_mat = np.array([float(num) for num in intrinsirc_raw.split(",")])
+    
+                inputs_tgt[b] = im_tgt
+                inputs_src[b] = np.concatenate([im_src_1, im_src_2], axis=2)
+                inputs_intrinsic[b] = get_multi_scale_intrinsics(intrinsirc_mat, opt.num_scales)
 
-                tgt_drive = img_dir_path.split("/")[-3]
-                tgt_cid = img_dir_path.split("/")[-2].split("_")[-1]
-                tgt_frame_id = img_name
-
-                intrinsics = load_intrinsics_raw(opt, tgt_drive, tgt_cid, tgt_frame_id) # (3, 3)
-                intrinsics = scale_intrinsics(intrinsics, zoom_x, zoom_y) # (3, 3)
-                intrinsics = get_multi_scale_intrinsics(intrinsics, opt.num_scales) # (4, 3, 3)
-
-                inputs_tgt[b] = np.array(scaled_im_tgt)
-                inputs_src[b] = np.array(scaled_im_src_concat)
-                # intrinsic of src images and tgt image are same in one scene event
-                inputs_intrinsic[b] = intrinsics # (4,3,3)
+                print("inputs_tgt shape: ", inputs_tgt[b])
+                print("inputs_src shape: ", inputs_src[b])
+                print("inputs_intrinsic shape: ", inputs_intrinsic[b])
 
             if opt.save_intermediate:
                 fetches["tgt_image"] = model.tgt_image # fetch tgt_image
@@ -213,10 +143,12 @@ def test_depth_delta(opt):
             # NOTE: save_intermediate: need intinsic to save error and warp
             pred = sess.run(fetches, feed_dict={input_uint8_tgt: inputs_tgt, input_uint8_src: inputs_src, input_float32_src: inputs_intrinsic})
 
-            # NOTE: only test with batch_size=1, so b=0
-            fetch_tgt_depth = pred['depth'] # (3, 128, 416, 1)
-            pred_all.append(fetch_tgt_depth)
-
+            for b in range(opt.batch_size):
+                idx = t + b
+                if idx >= len(test_files):
+                    break
+                pred_all.append(pred['depth'][b, :, :, 0])
+            
             if opt.save_intermediate:
                 file_name = str(time.time())
                 
@@ -224,7 +156,6 @@ def test_depth_delta(opt):
                 np.save(os.path.join(opt.output_dir, "tgt_image", file_name), pred['tgt_image'])
                 np.save(os.path.join(opt.output_dir, "src_image_stack", file_name), pred['src_image_stack'])
                 np.save(os.path.join(opt.output_dir, "delta_xyz", file_name), pred['delta_xyz'])
-                # FIXME: warp error: possible reason intrinsic or pose
                 np.save(os.path.join(opt.output_dir, "fwd_rigid_warp", file_name), pred['fwd_rigid_warp'])
                 np.save(os.path.join(opt.output_dir, "bwd_rigid_warp", file_name), pred['bwd_rigid_warp'])
                 np.save(os.path.join(opt.output_dir, "fwd_rigid_error", file_name), pred['fwd_rigid_error'])
@@ -232,26 +163,5 @@ def test_depth_delta(opt):
                 np.save(os.path.join(opt.output_dir, "fwd_rigid_flow", file_name), pred['fwd_rigid_flow'])
                 np.save(os.path.join(opt.output_dir, "bwd_rigid_flow", file_name), pred['bwd_rigid_flow'])
 
-                # fetch_tgt_image.append(pred['tgt_image']) # (1, 128, 416, 3) -> (128, 416, 3))
-                # fetch_src_image_stack.append(pred['src_image_stack'])# (1, 128, 416, 6) -> (128, 416, 6))
-                # fetch_delta_xyz.append(pred['delta_xyz']) # (1, 128, 416, 12) -> (128, 416, 12)
-                # fetch_fwd_rigid_warp.append(pred['fwd_rigid_warp']) # (2, 128, 416, 3)
-                # fetch_bwd_rigid_warp.append(pred['bwd_rigid_warp']) # (2, 128, 416, 3)
-                # fetch_fwd_rigid_error.append(pred['fwd_rigid_error']) # (2, 128, 416, 3)
-                # fetch_bwd_rigid_error.append(pred['bwd_rigid_error']) # (2, 128, 416, 3)
-                # fetch_fwd_rigid_flow.append(fetches["fwd_rigid_flow"]) # (2, 128, 416, 2)
-                # fetch_bwd_rigid_flow.append(fetches["bwd_rigid_flow"]) # (2, 128, 416, 2)
-                                
         # npy file will be saved locally
-        # np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)
-
-        # if opt.save_intermediate:
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-tgt_image"), fetch_tgt_image)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-src_image_stack"), fetch_src_image_stack)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-delta_xyz"), fetch_delta_xyz)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_warp"), fetch_fwd_rigid_warp)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_warp"), fetch_bwd_rigid_warp)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_error"), fetch_fwd_rigid_error)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_error"), fetch_bwd_rigid_error)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-fwd_rigid_flow"), fetch_fwd_rigid_flow)
-        #     np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)+"-bwd_rigid_flow"), fetch_bwd_rigid_flow)
+        np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)

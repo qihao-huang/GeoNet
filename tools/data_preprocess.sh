@@ -1,7 +1,3 @@
-# Python 2.7, TensorFlow 1.1 and CUDA 8.0 on Ubuntu 16.04.
-
-PYTHON="/userhome/34/h3567721/anaconda3/envs/geonet-v/bin/python"
-
 # preprocessing
 # depth
 # For depth task, the --dataset_name should be kitti_raw_eigen and --seq_length is set to 3;

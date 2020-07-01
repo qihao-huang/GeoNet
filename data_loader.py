@@ -79,7 +79,7 @@ class DataLoader(object):
         else:
             src_image_stack, tgt_image, intrinsics = \
                 tf.train.batch([src_image_stack, tgt_image, intrinsics], opt.batch_size,
-                                opt.num_threads,capacity)
+                                opt.num_threads, capacity)
 
         if mode == "train":
             # Data augmentation
