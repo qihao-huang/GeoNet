@@ -1,3 +1,12 @@
+"""
+I want to visualize the delta, warped images, waping error
+so I process the image offline like traning manner
+then load tgt, srcs, cam intrinsric in testing 
+The old approach only inputs the tgt image to predict its depth
+I want all intermedaite variables.
+"""
+
+
 from __future__ import division
 import tensorflow as tf
 import numpy as np
@@ -39,9 +48,15 @@ def test_depth_delta(opt):
     # NOTE: only tested with eigen split
 
     ##### load testing list #####
-    with open('data/kitti/test_files_%s.txt' % opt.depth_test_split, 'r') as f:
-        test_files = f.readlines()
-        test_files = [opt.dataset_dir + t[:-1] for t in test_files]
+    with open('data/kitti/test_files_%s.txt' % opt.depth_test_split, 'r') as f: 
+        test_files_tmp = [t[:-1] for t in f.readlines()]
+
+        # /userhome/34/h3567721/dataset/kitti/raw_data/2011_09_26/2011_09_26_drive_0009_sync/image_02/data/0000000160.png
+        # /userhome/34/h3567721/dataset/kitti/kitti_depth_test_eigen/2011_09_26_drive_0002_sync_02/0000000030.jpg
+
+        test_files = []
+        for i in range(len(test_files_tmp)):
+            test_files.append(os.path.join(opt.dataset_dir, os.path.splitext(t)[0].split("/")[1]+"_02", os.path.splitext(t)[0].split("/")[-1]+".jpg"))
 
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
@@ -101,7 +116,7 @@ def test_depth_delta(opt):
                 if idx >= len(test_files):
                     break
 
-                # "2011_09_26/2011_09_26_drive_0036_sync/image_02/data/0000000608.png"
+                # "2011_09_26_drive_0036_sync/image_02/data/0000000608.png"
                 file_path = test_files[idx]
                 img_dir_path, img_full_name = os.path.split(file_path)
                 img_name = os.path.splitext(img_full_name)[0] # '0000000608'
@@ -120,14 +135,11 @@ def test_depth_delta(opt):
                     intrinsirc_raw = f.readline()
 
                 intrinsirc_mat = np.array([float(num) for num in intrinsirc_raw.split(",")])
+                intrinsirc_mat = intrinsirc_mat.reshape(3,3)
     
                 inputs_tgt[b] = im_tgt
                 inputs_src[b] = np.concatenate([im_src_1, im_src_2], axis=2)
                 inputs_intrinsic[b] = get_multi_scale_intrinsics(intrinsirc_mat, opt.num_scales)
-
-                print("inputs_tgt shape: ", inputs_tgt[b])
-                print("inputs_src shape: ", inputs_src[b])
-                print("inputs_intrinsic shape: ", inputs_intrinsic[b])
 
             if opt.save_intermediate:
                 fetches["tgt_image"] = model.tgt_image # fetch tgt_image

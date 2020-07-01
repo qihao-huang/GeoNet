@@ -1,3 +1,10 @@
+"""
+there are lots of checkpoints of one experiment
+but no valdiation step in geonet as a unsupervised manner
+so I write a test script to test all checkpoints I have 
+and depth eval results will be saved locally in its correspoding log dir
+"""
+
 from __future__ import division
 import os
 
@@ -160,7 +167,6 @@ def test_depth_all(opt):
 
                 img_tgt_idx = int(img_name)
 
-
                 if img_tgt_idx == 0: #"0000000000"
                     img_src_1_idx = int(img_name) #"0000000000"
                     img_src_2_idx = int(img_name)+1 #"00000000001"
@@ -213,7 +219,6 @@ def test_depth_all(opt):
         np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)
 
     return pred_all
-
 
 def locate_cktp(opt, ckpt_dir):
     cktp_dict = {}

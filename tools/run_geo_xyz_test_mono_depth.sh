@@ -3,10 +3,9 @@ export CUDA_VISIBLE_DEVICES=0
 user_path="/userhome/34/h3567721"
 
 # NOTE: pay attention to test_depth_delta
-# FIXME: error in save intermedaite
 python geonet_main.py \
     --mode=test_depth_delta \
-    --dataset_dir=$user_path"/dataset/kitti/raw_data/" \
+    --dataset_dir=$user_path"/dataset/kitti/kitti_depth_test_eigen/" \
     --init_ckpt_file=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_mask/model-65000" \
     --batch_size=1 \
     --depth_test_split=eigen \

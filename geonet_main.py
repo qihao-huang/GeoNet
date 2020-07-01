@@ -12,7 +12,7 @@ from geonet_model import *
 from geonet_test_depth import *
 from geonet_test_depth_detla import *
 from geonet_test_pose import *
-from geonet_test_flow import *
+# from geonet_test_flow import *
 from data_loader import DataLoader
 
 flags = tf.app.flags
