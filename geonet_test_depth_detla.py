@@ -56,6 +56,7 @@ def test_depth_delta(opt):
 
         test_files = []
         for i in range(len(test_files_tmp)):
+            t = test_files_tmp[i]
             test_files.append(os.path.join(opt.dataset_dir, os.path.splitext(t)[0].split("/")[1]+"_02", os.path.splitext(t)[0].split("/")[-1]+".jpg"))
 
     if not os.path.exists(opt.output_dir):
@@ -124,6 +125,8 @@ def test_depth_delta(opt):
                 img_path = os.path.join(img_dir_path, img_name+".jpg")
                 cam_txt = os.path.join(img_dir_path, img_name+"_cam.txt")
 
+                print(img_path)
+
                 fh = open(img_path, 'r')
                 raw_im = pil.open(fh)
 
@@ -162,8 +165,7 @@ def test_depth_delta(opt):
                 pred_all.append(pred['depth'][b, :, :, 0])
             
             if opt.save_intermediate:
-                file_name = str(time.time())
-                
+                file_name =  os.path.split(file_path)[0].split("/")[-1]+"_"+img_name
                 np.save(os.path.join(opt.output_dir, "depth", file_name), pred['depth'])
                 np.save(os.path.join(opt.output_dir, "tgt_image", file_name), pred['tgt_image'])
                 np.save(os.path.join(opt.output_dir, "src_image_stack", file_name), pred['src_image_stack'])

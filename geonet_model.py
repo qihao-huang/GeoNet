@@ -105,6 +105,7 @@ class GeoNetModel(object):
             self.pred_disp = [self.spatial_normalize(disp) for disp in self.pred_disp]
 
         self.pred_depth = [1./d for d in self.pred_disp]
+        # self.delta_xyz = [1./d for d in self.delta_xyz]
 
     def build_posenet(self):
         opt = self.opt
@@ -125,7 +126,6 @@ class GeoNetModel(object):
         self.bwd_rigid_flow_pyramid = []
         
         for s in range(opt.num_scales):
-
             for i in range(opt.num_source):
                 # self.pred_depth:
                 # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]

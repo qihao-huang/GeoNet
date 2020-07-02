@@ -259,8 +259,10 @@ def get_delta_xyz(opt, x, sc):
     p_x = tf.pad(restack_x, [[0, 0], [p, p], [p, p], [0, 0]])
     # default stride=1, default padding="SAME" for slim.conv2d()
 
-    # delta_xyz: (4, 128, 416, 12)
+    # the reason why I set out_channels to 12
+    # delta_x, delta_y, delta_z * 4 (fwd*2, bwd*2)
     # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=None, normalizer_fn=None, scope=sc)
+    # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=tf.nn.sigmoid, normalizer_fn=None, scope=sc)
 
     delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', 
                                 activation_fn=None, 
