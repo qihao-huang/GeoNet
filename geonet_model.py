@@ -124,6 +124,8 @@ class GeoNetModel(object):
         # build rigid flow (fwd: tgt->src, bwd: src->tgt)
         self.fwd_rigid_flow_pyramid = []
         self.bwd_rigid_flow_pyramid = []
+        self.fwd_cam_coords_concat_pyramid = []
+        self.bwd_cam_coords_concat_pyramid = []
         
         for s in range(opt.num_scales):
             for i in range(opt.num_source):
@@ -148,28 +150,33 @@ class GeoNetModel(object):
                 
                 # self.pred_depth[s(0:3)][:bs], 0:4: the whole batch of tgt
                 # tf.squeeze(): (4, 128, 416, 1) -> (4, 128, 416) 
-                fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
+                fwd_cam_coords, fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
                                 delta_xyz_fwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], False)
                     
                 # backward: src_1 -> tgt, src_2 -> tgt
                 # src_1: 4:8, src_2: 8:12
                 
                 # bwd_rigid_flow: (4, 128, 416, 2)
-                bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
+                bwd_cam_coords, bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
                                  delta_xyz_bwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], True)
                 
                 if not i:
                     fwd_rigid_flow_concat = fwd_rigid_flow
                     bwd_rigid_flow_concat = bwd_rigid_flow
+                    fwd_cam_coords_concat = fwd_cam_coords
+                    bwd_cam_coords_concat = bwd_cam_coords
                 else:
                     fwd_rigid_flow_concat = tf.concat([fwd_rigid_flow_concat, fwd_rigid_flow], axis=0)
                     bwd_rigid_flow_concat = tf.concat([bwd_rigid_flow_concat, bwd_rigid_flow], axis=0)
+                    fwd_cam_coords_concat = tf.concat([fwd_cam_coords_concat, fwd_cam_coords], axis=0)
+                    bwd_cam_coords_concat = tf.concat([bwd_cam_coords_concat, bwd_cam_coords], axis=0)
 
             # fwd: concat tgt -> src_1 and tgt -> src_2 in axis = 0
             # fwd_rigid_flow_concat: (8, 128, 416, 2)
             self.fwd_rigid_flow_pyramid.append(fwd_rigid_flow_concat)
-
             self.bwd_rigid_flow_pyramid.append(bwd_rigid_flow_concat)
+            self.fwd_cam_coords_concat_pyramid.append(fwd_cam_coords_concat)
+            self.bwd_cam_coords_concat_pyramid.append(bwd_cam_coords_concat)
         
         # self.fwd_rigid_flow_pyramid: 
         # [(8, 128, 416, 2), (8, 64, 208, 2), (8, 32, 104, 2), (8, 16, 52, 2)]

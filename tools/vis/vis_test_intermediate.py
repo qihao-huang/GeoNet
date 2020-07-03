@@ -4,6 +4,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+def norm_cc(x):
+    return (np.max(x)-x)/(np.max(x)-np.min(x))
+
 def view_idx(file_name):
     depth = np.load(os.path.join(depth_path, file_name))
     delta = np.load(os.path.join(delta_path, file_name))
@@ -41,11 +44,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,7)
     plt.imshow((fwd_rigid_warp[0]+1)/2)
-    plt.title("fwd warp")
+    plt.title("fwd warp: tgt->src_1")
 
     plt.subplot(6,3,8)
     plt.imshow((fwd_rigid_warp[1]+1)/2)
-    plt.title("fwd warp")
+    plt.title("fwd warp: tgt->src_2")
 
     plt.subplot(6,3,9)
     plt.imshow(delta[0][:,:,0:3]*scale)
@@ -53,11 +56,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,10)
     plt.imshow((bwd_rigid_warp[0]+1)/2)
-    plt.title("bwd warp")
+    plt.title("bwd warp: src_1->tgt")
 
     plt.subplot(6,3,11)
     plt.imshow((bwd_rigid_warp[1]+1)/2)
-    plt.title("bwd warp")
+    plt.title("bwd warp: src_2->tgt")
 
     plt.subplot(6,3,12)
     plt.imshow(delta[0][:,:,3:6]*scale)
@@ -65,11 +68,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,13)
     plt.imshow(fwd_rigid_error[0])
-    plt.title("fwd err")
+    plt.title("fwd err: tgt->src_1")
 
     plt.subplot(6,3,14)
     plt.imshow(fwd_rigid_error[1])
-    plt.title("fwd err")
+    plt.title("fwd err: tgt->src_2")
 
     plt.subplot(6,3,15)
     plt.imshow(delta[0][:,:,6:9]*scale)
@@ -77,11 +80,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,16)
     plt.imshow(bwd_rigid_error[0])
-    plt.title("bwd err")
+    plt.title("bwd err: src_1->tgt")
 
     plt.subplot(6,3,17)
     plt.imshow(bwd_rigid_error[1])
-    plt.title("bwd err")
+    plt.title("bwd err: src_2->tgt")
 
     plt.subplot(6,3,18)
     plt.imshow(delta[0][:,:,9:12]*scale)
@@ -102,7 +105,7 @@ def make_dir(dir_path):
         os.makedirs(dir_path)
         
 if __name__ == "__main__":
-    base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/predictions/depth_geo_delta_two_stage_3"
+    base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/predictions/depth_geo_delta_two_stage_delta_sigmoid"
 
     tgt_path = os.path.join(base_path, "tgt_image") # 1
     src_path = os.path.join(base_path, "src_image_stack") # 2
@@ -115,10 +118,11 @@ if __name__ == "__main__":
     fwd_rigid_warp_path = os.path.join(base_path, "fwd_rigid_warp") # 2
 
     var_names = os.listdir(depth_path) 
-    scale = 50
+    scale = 1
 
     make_dir(os.path.join(base_path, "plot"))
 
     for i in range(len(var_names)):
+        print(var_names[i])
         vis_save_path = os.path.join(base_path, "plot", var_names[i].replace("npy", "png"))
         view_idx(var_names[i])

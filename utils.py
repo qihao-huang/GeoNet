@@ -287,7 +287,7 @@ def compute_rigid_flow(depth, delta_xyz, pose, intrinsics, reverse_pose=False):
 
     rigid_flow = src_pixel_coords - tgt_pixel_coords
 
-    return rigid_flow
+    return cam_coords, rigid_flow
 
 
 def bilinear_sampler(imgs, coords):

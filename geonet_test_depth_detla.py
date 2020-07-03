@@ -62,16 +62,19 @@ def test_depth_delta(opt):
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
 
-    make_dir(os.path.join(opt.output_dir, "depth"))
-    make_dir(os.path.join(opt.output_dir, "tgt_image"))
-    make_dir(os.path.join(opt.output_dir, "src_image_stack"))
-    make_dir(os.path.join(opt.output_dir, "delta_xyz"))
-    make_dir(os.path.join(opt.output_dir, "fwd_rigid_warp"))
-    make_dir(os.path.join(opt.output_dir, "bwd_rigid_warp"))
-    make_dir(os.path.join(opt.output_dir, "fwd_rigid_error"))
-    make_dir(os.path.join(opt.output_dir, "bwd_rigid_error"))
-    make_dir(os.path.join(opt.output_dir, "fwd_rigid_flow"))
-    make_dir(os.path.join(opt.output_dir, "bwd_rigid_flow"))
+    if opt.save_intermediate:
+        make_dir(os.path.join(opt.output_dir, "depth"))
+        make_dir(os.path.join(opt.output_dir, "tgt_image"))
+        make_dir(os.path.join(opt.output_dir, "src_image_stack"))
+        make_dir(os.path.join(opt.output_dir, "delta_xyz"))
+        make_dir(os.path.join(opt.output_dir, "fwd_rigid_warp"))
+        make_dir(os.path.join(opt.output_dir, "bwd_rigid_warp"))
+        make_dir(os.path.join(opt.output_dir, "fwd_rigid_error"))
+        make_dir(os.path.join(opt.output_dir, "bwd_rigid_error"))
+        make_dir(os.path.join(opt.output_dir, "fwd_rigid_flow"))
+        make_dir(os.path.join(opt.output_dir, "bwd_rigid_flow"))
+        make_dir(os.path.join(opt.output_dir, "fwd_cam_coords"))
+        make_dir(os.path.join(opt.output_dir, "bwd_cam_coords"))
 
     ##### init #####
     input_uint8_tgt = tf.compat.v1.placeholder(tf.uint8, [opt.batch_size, opt.img_height, opt.img_width, 3], name='raw_tgt_input')
@@ -95,13 +98,14 @@ def test_depth_delta(opt):
             fetch_tgt_image = []
             fetch_src_image_stack = []
             fetch_delta_xyz = []
-
             fetch_fwd_rigid_warp = []
             fetch_bwd_rigid_warp = []
             fetch_fwd_rigid_error = []
             fetch_bwd_rigid_error = []
             fetch_fwd_rigid_flow = []
             fetch_bwd_rigid_flow = []
+            fetch_fwd_cam_coords = []
+            fetch_bwd_cam_coords = []
 
         for t in range(0, len(test_files), opt.batch_size):
             if t % 100 == 0:
@@ -154,6 +158,9 @@ def test_depth_delta(opt):
                 fetches["bwd_rigid_error"] = model.bwd_rigid_error_pyramid[0]
                 fetches["fwd_rigid_flow"] = model.fwd_rigid_flow_pyramid[0]
                 fetches["bwd_rigid_flow"] = model.bwd_rigid_flow_pyramid[0]
+                fetches["fwd_cam_coords"] = model.fwd_cam_coords_concat_pyramid[0]
+                fetches["bwd_cam_coords"] = model.bwd_cam_coords_concat_pyramid[0]
+
             
             # NOTE: save_intermediate: need intinsic to save error and warp
             pred = sess.run(fetches, feed_dict={input_uint8_tgt: inputs_tgt, input_uint8_src: inputs_src, input_float32_src: inputs_intrinsic})
@@ -176,6 +183,8 @@ def test_depth_delta(opt):
                 np.save(os.path.join(opt.output_dir, "bwd_rigid_error", file_name), pred['bwd_rigid_error'])
                 np.save(os.path.join(opt.output_dir, "fwd_rigid_flow", file_name), pred['fwd_rigid_flow'])
                 np.save(os.path.join(opt.output_dir, "bwd_rigid_flow", file_name), pred['bwd_rigid_flow'])
+                np.save(os.path.join(opt.output_dir, "fwd_cam_coords", file_name), pred['fwd_cam_coords'])
+                np.save(os.path.join(opt.output_dir, "bwd_cam_coords", file_name), pred['bwd_cam_coords'])
 
         # npy file will be saved locally
         np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)

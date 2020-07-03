@@ -262,17 +262,17 @@ def get_delta_xyz(opt, x, sc):
     # the reason why I set out_channels to 12
     # delta_x, delta_y, delta_z * 4 (fwd*2, bwd*2)
     # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=None, normalizer_fn=None, scope=sc)
-    # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=tf.nn.sigmoid, normalizer_fn=None, scope=sc)
+    delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=tf.nn.sigmoid, normalizer_fn=None, scope=sc)
 
-    delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', 
-                                activation_fn=None, 
-                                normalizer_fn=None,
-                                normalizer_params=None,
-                                weights_initializer=tf.zeros_initializer(),
-                                weights_regularizer=None,
-                                biases_initializer=tf.zeros_initializer(),
-                                biases_regularizer=None,
-                                scope=sc)
+    # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', 
+    #                             activation_fn=None, 
+    #                             normalizer_fn=None,
+    #                             normalizer_params=None,
+    #                             weights_initializer=tf.zeros_initializer(),
+    #                             weights_regularizer=None,
+    #                             biases_initializer=tf.zeros_initializer(),
+    #                             biases_regularizer=None,
+    #                             scope=sc)
 
                             # scope definition of posenet conv2d
                             # normalizer_fn=slim.batch_norm,

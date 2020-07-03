@@ -2,6 +2,7 @@
 export CUDA_VISIBLE_DEVICES=0
 user_path="/userhome/34/h3567721"
 
+# 0-0
 python geonet_main.py \
     --mode=train_rigid \
     --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
@@ -10,11 +11,23 @@ python geonet_main.py \
     --seq_length=3 \
     --batch_size=4 \
     --max_steps=1500001 \
-    --log_savedir=$user_path"/projects/Depth/GeoNet/log/depth_geo_delta_two_stage_delta_sigmoid" \
     --delta_mode \
     --init_ckpt_file=$user_path"/projects/Depth/GeoNet-ori/checkpoint/checkpoint_depth/model-150000" \
     --max_to_keep=40
 
+# 0-1
+python geonet_main.py \
+    --mode=train_rigid \
+    --dataset_dir=$user_path"/dataset/kitti/kitti_raw_eigen" \
+    --checkpoint_dir=$user_path"/projects/Depth/GeoNet/checkpoint/depth_geo_delta_two_stage_delta_sigmoid_no_inverse" \
+    --learning_rate=0.0002 \
+    --seq_length=3 \
+    --batch_size=4 \
+    --max_steps=1500001 \
+    --delta_mode \
+    --init_ckpt_file=$user_path"/projects/Depth/GeoNet-ori/checkpoint/checkpoint_depth/model-150000" \
+    --max_to_keep=40
+    
 # train depth
 # 1
 python geonet_main.py \
