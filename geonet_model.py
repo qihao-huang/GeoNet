@@ -105,7 +105,6 @@ class GeoNetModel(object):
             self.pred_disp = [self.spatial_normalize(disp) for disp in self.pred_disp]
 
         self.pred_depth = [1./d for d in self.pred_disp]
-        # self.delta_xyz = [1./d for d in self.delta_xyz]
 
     def build_posenet(self):
         opt = self.opt
@@ -129,6 +128,17 @@ class GeoNetModel(object):
         
         for s in range(opt.num_scales):
             for i in range(opt.num_source):
+                # self.delta_xyz: [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
+                # i=0: 0:3 -> fwd, 6:9 -> bwd (tgt->src1, src1->tgt)
+                # i=1: 3:6 -> fwd, 9:12 -> bwd (tgt->src2, src2->tgt
+        
+                if opt.delta_mode:
+                    delta_xyz_fwd = self.delta_xyz[s][:,:,:,3*(i):3*(i+1)]
+                    delta_xyz_bwd = self.delta_xyz[s][:,:,:,3*(i+2):3*(i+3)]
+                else:
+                    delta_xyz_fwd = None
+                    delta_xyz_bwd = None
+
                 # self.pred_depth:
                 # [(12, 128, 416, 1) , (12, 64, 208, 1) , (12, 32, 104, 1) , (12, 16, 52, 1) ]
 
@@ -136,26 +146,14 @@ class GeoNetModel(object):
                 # self.pred_poses[:,i=1,:]: tgt->src_2
                 
                 # fwd_rigid_flow: (4, 128, 416, 2)
-                # for deltax_xyz:
-                # i=0: 0:3 -> fwd, 6:9 -> bwd (tgt->src1, src1->tgt)
-                # i=1: 3:6 -> fwd, 9:12 -> bwd (tgt->src2, src2->tgt
-                # self.delta_xyz:     [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
-
-                if opt.delta_mode:
-                    delta_xyz_fwd = self.delta_xyz[s][:,:,:,3*(i):3*(i+1)]
-                    delta_xyz_bwd = self.delta_xyz[s][:,:,:,3*(i+2):3*(i+3)]
-                else:
-                    delta_xyz_fwd = None
-                    delta_xyz_bwd = None
-                
-                # self.pred_depth[s(0:3)][:bs], 0:4: the whole batch of tgt
+                # self.pred_depth[s][:bs], s(0:3): scale,  bs(0:4): the whole batch of tgt
                 # tf.squeeze(): (4, 128, 416, 1) -> (4, 128, 416) 
+                # fwd_rigid_flow: Compute the rigid flow from target image plane to source image
                 fwd_cam_coords, fwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][:bs], axis=3),
                                 delta_xyz_fwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], False)
                     
                 # backward: src_1 -> tgt, src_2 -> tgt
-                # src_1: 4:8, src_2: 8:12
-                
+                # depth: src_1: 4:8, src_2: 8:12
                 # bwd_rigid_flow: (4, 128, 416, 2)
                 bwd_cam_coords, bwd_rigid_flow = compute_rigid_flow(tf.squeeze(self.pred_depth[s][bs*(i+1):bs*(i+2)], axis=3),
                                  delta_xyz_bwd, self.pred_poses[:,i,:], self.intrinsics[:,s,:,:], True)
@@ -173,6 +171,7 @@ class GeoNetModel(object):
 
             # fwd: concat tgt -> src_1 and tgt -> src_2 in axis = 0
             # fwd_rigid_flow_concat: (8, 128, 416, 2)
+
             self.fwd_rigid_flow_pyramid.append(fwd_rigid_flow_concat)
             self.bwd_rigid_flow_pyramid.append(bwd_rigid_flow_concat)
             self.fwd_cam_coords_concat_pyramid.append(fwd_cam_coords_concat)
@@ -180,7 +179,8 @@ class GeoNetModel(object):
         
         # self.fwd_rigid_flow_pyramid: 
         # [(8, 128, 416, 2), (8, 64, 208, 2), (8, 32, 104, 2), (8, 16, 52, 2)]
-        # warping by rigid flow
+
+        # # NOTE: inverse warp a source image to the target image plane based on flow field
         self.fwd_rigid_warp_pyramid = [flow_warp(self.src_image_concat_pyramid[s], self.fwd_rigid_flow_pyramid[s]) \
                                       for s in range(opt.num_scales)]
         self.bwd_rigid_warp_pyramid = [flow_warp(self.tgt_image_tile_pyramid[s], self.bwd_rigid_flow_pyramid[s]) \
@@ -200,7 +200,6 @@ class GeoNetModel(object):
         self.fwd_flownet_inputs = tf.concat([self.tgt_image_tile_pyramid[0], self.src_image_concat_pyramid[0]], axis=3)
         self.bwd_flownet_inputs = tf.concat([self.src_image_concat_pyramid[0], self.tgt_image_tile_pyramid[0]], axis=3)
 
-        # TODO: direct or residual ?
         if opt.flownet_type == 'residual':
             self.fwd_flownet_inputs = tf.concat([self.fwd_flownet_inputs, 
                                       self.fwd_rigid_warp_pyramid[0], # warped RGB

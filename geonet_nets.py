@@ -265,6 +265,16 @@ def get_delta_xyz(opt, x, sc):
     delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=tf.nn.sigmoid, normalizer_fn=None, scope=sc)
 
     # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', 
+    #                             activation_fn=tf.nn.sigmoid, 
+    #                             normalizer_fn=None,
+    #                             normalizer_params=None,
+    #                             weights_initializer=tf.zeros_initializer(),
+    #                             weights_regularizer=None,
+    #                             biases_initializer=tf.zeros_initializer(),
+    #                             biases_regularizer=None,
+    #                             scope=sc)
+
+    # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', 
     #                             activation_fn=None, 
     #                             normalizer_fn=None,
     #                             normalizer_params=None,
@@ -299,8 +309,8 @@ def get_delta_xyz(opt, x, sc):
     #       trainable=True,
     #       scope=None):
     
-    #TODO: 5*delta_xyz + 0.01, shall we change?
-    return DISP_SCALING_RESNET50 * delta_xyz + 0.01
+    return 10 * (delta_xyz-0.5)
+    # return DISP_SCALING_RESNET50 * (delta_xyz-0.5)
 
 def get_disp_resnet50(x):
     disp = DISP_SCALING_RESNET50 * conv(x, 1, 3, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) + 0.01

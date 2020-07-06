@@ -117,8 +117,6 @@ def pixel2cam(depth, pixel_coords, intrinsics, is_homogeneous=True):
 def cam_add_delta(cam_coords, delta_xyz, is_homogeneous=True):
     batch, _, height, width = cam_coords.get_shape().as_list()
 
-    # FIXME: transpose
-    # [0 , 1, 2, 3 ] -> [0, 3, 1, 2]
     # delta_xyz [4, 128, 416, 3] -> [4, 3, 128, 316]
     delta_xyz = tf.transpose(delta_xyz[:, :, :, :], [0, 3, 1, 2])
 

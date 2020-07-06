@@ -30,12 +30,13 @@ def view_idx(file_name):
     plt.imshow((src[0,:,:,3:6]+1)/2)
     plt.title("src_2")
 
+    # depth[tgt, src_1, src_2]
     plt.subplot(6,3,4)
-    plt.imshow(1.0/depth[0,:,:,0], cmap="plasma")
+    plt.imshow(1.0/depth[1,:,:,0], cmap="plasma")
     plt.title("src_1_depth")
 
     plt.subplot(6,3,5)
-    plt.imshow(1.0/depth[1,:,:,0], cmap="plasma")
+    plt.imshow(1.0/depth[0,:,:,0], cmap="plasma")
     plt.title("tgt_depth")
 
     plt.subplot(6,3,6)
@@ -44,11 +45,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,7)
     plt.imshow((fwd_rigid_warp[0]+1)/2)
-    plt.title("fwd warp: tgt->src_1")
+    plt.title("fwd warp: src_1->tgt")
 
     plt.subplot(6,3,8)
     plt.imshow((fwd_rigid_warp[1]+1)/2)
-    plt.title("fwd warp: tgt->src_2")
+    plt.title("fwd warp: src_2->tgt")
 
     plt.subplot(6,3,9)
     plt.imshow(delta[0][:,:,0:3]*scale)
@@ -56,11 +57,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,10)
     plt.imshow((bwd_rigid_warp[0]+1)/2)
-    plt.title("bwd warp: src_1->tgt")
+    plt.title("bwd warp: tgt->src_1")
 
     plt.subplot(6,3,11)
     plt.imshow((bwd_rigid_warp[1]+1)/2)
-    plt.title("bwd warp: src_2->tgt")
+    plt.title("bwd warp: tgt->src_2")
 
     plt.subplot(6,3,12)
     plt.imshow(delta[0][:,:,3:6]*scale)
@@ -68,11 +69,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,13)
     plt.imshow(fwd_rigid_error[0])
-    plt.title("fwd err: tgt->src_1")
+    plt.title("fwd err: src_1->tgt vs tgt")
 
     plt.subplot(6,3,14)
     plt.imshow(fwd_rigid_error[1])
-    plt.title("fwd err: tgt->src_2")
+    plt.title("fwd err: src_2->tgt vs tgt")
 
     plt.subplot(6,3,15)
     plt.imshow(delta[0][:,:,6:9]*scale)
@@ -80,11 +81,11 @@ def view_idx(file_name):
 
     plt.subplot(6,3,16)
     plt.imshow(bwd_rigid_error[0])
-    plt.title("bwd err: src_1->tgt")
+    plt.title("bwd err: tgt->src_1 vs src_1")
 
     plt.subplot(6,3,17)
     plt.imshow(bwd_rigid_error[1])
-    plt.title("bwd err: src_2->tgt")
+    plt.title("bwd err: tgt->src_2 vs sr_2")
 
     plt.subplot(6,3,18)
     plt.imshow(delta[0][:,:,9:12]*scale)
@@ -105,7 +106,7 @@ def make_dir(dir_path):
         os.makedirs(dir_path)
         
 if __name__ == "__main__":
-    base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/predictions/depth_geo_delta_two_stage_delta_sigmoid"
+    base_path = "/userhome/34/h3567721/projects/Depth/GeoNet/predictions/depth_geo_delta_two_stage_lr2"
 
     tgt_path = os.path.join(base_path, "tgt_image") # 1
     src_path = os.path.join(base_path, "src_image_stack") # 2
