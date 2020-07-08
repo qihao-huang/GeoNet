@@ -62,19 +62,21 @@ def test_depth_delta(opt):
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
 
+    model_name = os.path.splitext(os.path.basename(opt.init_ckpt_file))[0]
+    
     if opt.save_intermediate:
-        make_dir(os.path.join(opt.output_dir, "depth"))
-        make_dir(os.path.join(opt.output_dir, "tgt_image"))
-        make_dir(os.path.join(opt.output_dir, "src_image_stack"))
-        make_dir(os.path.join(opt.output_dir, "delta_xyz"))
-        make_dir(os.path.join(opt.output_dir, "fwd_rigid_warp"))
-        make_dir(os.path.join(opt.output_dir, "bwd_rigid_warp"))
-        make_dir(os.path.join(opt.output_dir, "fwd_rigid_error"))
-        make_dir(os.path.join(opt.output_dir, "bwd_rigid_error"))
-        make_dir(os.path.join(opt.output_dir, "fwd_rigid_flow"))
-        make_dir(os.path.join(opt.output_dir, "bwd_rigid_flow"))
-        make_dir(os.path.join(opt.output_dir, "fwd_cam_coords"))
-        make_dir(os.path.join(opt.output_dir, "bwd_cam_coords"))
+        make_dir(os.path.join(opt.output_dir, model_name, "depth"))
+        make_dir(os.path.join(opt.output_dir, model_name, "tgt_image"))
+        make_dir(os.path.join(opt.output_dir, model_name, "src_image_stack"))
+        make_dir(os.path.join(opt.output_dir, model_name, "fwd_rigid_warp"))
+        make_dir(os.path.join(opt.output_dir, model_name, "bwd_rigid_warp"))
+        make_dir(os.path.join(opt.output_dir, model_name, "fwd_rigid_error"))
+        make_dir(os.path.join(opt.output_dir, model_name, "bwd_rigid_error"))
+        make_dir(os.path.join(opt.output_dir, model_name, "fwd_rigid_flow"))
+        make_dir(os.path.join(opt.output_dir, model_name, "bwd_rigid_flow"))
+        make_dir(os.path.join(opt.output_dir, model_name, "fwd_cam_coords"))
+        make_dir(os.path.join(opt.output_dir, model_name, "bwd_cam_coords"))
+
 
     ##### init #####
     input_uint8_tgt = tf.compat.v1.placeholder(tf.uint8, [opt.batch_size, opt.img_height, opt.img_width, 3], name='raw_tgt_input')
@@ -173,18 +175,17 @@ def test_depth_delta(opt):
             
             if opt.save_intermediate:
                 file_name =  os.path.split(file_path)[0].split("/")[-1]+"_"+img_name
-                np.save(os.path.join(opt.output_dir, "depth", file_name), pred['depth'])
-                np.save(os.path.join(opt.output_dir, "tgt_image", file_name), pred['tgt_image'])
-                np.save(os.path.join(opt.output_dir, "src_image_stack", file_name), pred['src_image_stack'])
-                np.save(os.path.join(opt.output_dir, "delta_xyz", file_name), pred['delta_xyz'])
-                np.save(os.path.join(opt.output_dir, "fwd_rigid_warp", file_name), pred['fwd_rigid_warp'])
-                np.save(os.path.join(opt.output_dir, "bwd_rigid_warp", file_name), pred['bwd_rigid_warp'])
-                np.save(os.path.join(opt.output_dir, "fwd_rigid_error", file_name), pred['fwd_rigid_error'])
-                np.save(os.path.join(opt.output_dir, "bwd_rigid_error", file_name), pred['bwd_rigid_error'])
-                np.save(os.path.join(opt.output_dir, "fwd_rigid_flow", file_name), pred['fwd_rigid_flow'])
-                np.save(os.path.join(opt.output_dir, "bwd_rigid_flow", file_name), pred['bwd_rigid_flow'])
-                np.save(os.path.join(opt.output_dir, "fwd_cam_coords", file_name), pred['fwd_cam_coords'])
-                np.save(os.path.join(opt.output_dir, "bwd_cam_coords", file_name), pred['bwd_cam_coords'])
-
+                np.save(os.path.join(opt.output_dir, model_name, "depth", file_name), pred['depth'])
+                np.save(os.path.join(opt.output_dir, model_name, "tgt_image", file_name), pred['tgt_image'])
+                np.save(os.path.join(opt.output_dir, model_name, "src_image_stack", file_name), pred['src_image_stack'])
+                np.save(os.path.join(opt.output_dir, model_name, "fwd_rigid_warp", file_name), pred['fwd_rigid_warp'])
+                np.save(os.path.join(opt.output_dir, model_name, "bwd_rigid_warp", file_name), pred['bwd_rigid_warp'])
+                np.save(os.path.join(opt.output_dir, model_name, "fwd_rigid_error", file_name), pred['fwd_rigid_error'])
+                np.save(os.path.join(opt.output_dir, model_name, "bwd_rigid_error", file_name), pred['bwd_rigid_error'])
+                np.save(os.path.join(opt.output_dir, model_name, "fwd_rigid_flow", file_name), pred['fwd_rigid_flow'])
+                np.save(os.path.join(opt.output_dir, model_name, "bwd_rigid_flow", file_name), pred['bwd_rigid_flow'])
+                np.save(os.path.join(opt.output_dir, model_name, "fwd_cam_coords", file_name), pred['fwd_cam_coords'])
+                np.save(os.path.join(opt.output_dir, model_name, "bwd_cam_coords", file_name), pred['bwd_cam_coords'])
+        
         # npy file will be saved locally
         np.save(os.path.join(opt.output_dir, os.path.basename(opt.init_ckpt_file)), pred_all)

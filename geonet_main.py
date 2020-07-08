@@ -12,11 +12,12 @@ from geonet_model import *
 from geonet_test_depth import *
 from geonet_test_depth_detla import *
 from geonet_test_pose import *
-# from geonet_test_flow import *
+from geonet_test_flow import *
 from data_loader import DataLoader
 
 flags = tf.app.flags
 ####
+flags.DEFINE_boolean("ignore_gray_warp",         False, "whether to ignore the gray warping in loss computation")
 flags.DEFINE_boolean("save_intermediate",         False, "whether to save the intermediate vars")
 flags.DEFINE_boolean("delta_mode",                False, "whether to train the delta xyz")
 flags.DEFINE_boolean("fix_posenet",               False, "whether to fix the posenet")
@@ -118,12 +119,6 @@ def train():
         else:
             train_vars = [var for var in tf.compat.v1.trainable_variables()]
             vars_to_restore = slim.get_model_variables()
-
-        for v in vars_to_restore:
-            print(v)
-        
-        for v in train_vars:
-            print(v)
 
         if opt.init_ckpt_file != None:
             init_assign_op, init_feed_dict = slim.assign_from_checkpoint(opt.init_ckpt_file, vars_to_restore)

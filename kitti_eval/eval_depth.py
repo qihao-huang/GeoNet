@@ -46,6 +46,8 @@ def convert_disps_to_depths_stereo(gt_disparities, pred_depths):
     return gt_depths, pred_depths_resized, pred_disparities_resized
 
 def main():
+    model_name = os.path.splitext(os.path.basename(args.pred_file))[0] # model-10000
+    model_path = os.path.dirname(args.pred_file) # ../ignore_gray_iterative_fix_pose_8
 
     pred_depths = np.load(args.pred_file)
     args.test_file_list = './data/kitti/test_files_%s.txt' % args.split
@@ -125,5 +127,12 @@ def main():
 
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
     print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))    
+
+    f = open(os.path.join(model_path, model_name+".txt"), "a")
+    f.write("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
+    f.write("\n")
+    f.write("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(
+        abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))    
+    f.close()
 
 main()

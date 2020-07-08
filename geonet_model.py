@@ -129,8 +129,9 @@ class GeoNetModel(object):
         for s in range(opt.num_scales):
             for i in range(opt.num_source):
                 # self.delta_xyz: [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
-                # i=0: 0:3 -> fwd, 6:9 -> bwd (tgt->src1, src1->tgt)
-                # i=1: 3:6 -> fwd, 9:12 -> bwd (tgt->src2, src2->tgt
+
+                # i=0: 0:3 -> fwd, 6:9 -> bwd (fwd: tgt->src1, bwd: src1->tgt)
+                # i=1: 3:6 -> fwd, 9:12 -> bwd (fwd: tgt->src2, bwd: src2->tgt)
         
                 if opt.delta_mode:
                     delta_xyz_fwd = self.delta_xyz[s][:,:,:,3*(i):3*(i+1)]
@@ -191,6 +192,36 @@ class GeoNetModel(object):
                                        for s in range(opt.num_scales)]      
         self.bwd_rigid_error_pyramid = [self.image_similarity(self.bwd_rigid_warp_pyramid[s], self.src_image_concat_pyramid[s]) \
                                        for s in range(opt.num_scales)]
+    
+        if opt.ignore_gray_warp:
+            self.fwd_rigid_error_pyramid = self.ignore_gray_warp(self.fwd_rigid_warp_pyramid, self.fwd_rigid_error_pyramid)
+            self.bwd_rigid_error_pyramid = self.ignore_gray_warp(self.bwd_rigid_warp_pyramid, self.bwd_rigid_error_pyramid)
+
+    def ignore_gray_warp(self, warp_pyramid, error_pyramid):
+        # warp_pyramid, error_pyramid
+        # [(8, 128, 416, 3), (8, 64, 208, 3), (8, 32, 104, 3), (8, 16, 52, 3)]
+
+        # NOTE: tensor manner
+        ignore_gray_error_pyramid = []
+        for s in range(self.opt.num_scales):
+            zero = tf.zeros_like(error_pyramid[s])
+            one = tf.identity(error_pyramid[s])
+            binary_mask = tf.where((warp_pyramid[s] < 0.0001) & (warp_pyramid[s] > -0.0001), x=zero, y=one)
+            ignore_gray_error_pyramid.append(tf.multiply(binary_mask, error_pyramid[s]))
+
+        # NOTE: non-tensor manner
+        # ignore_gray_error_pyramid = []
+        # for s in range(self.opt.num_scales):
+        #     for bs in range(self.opt.batch_size*2):
+        #         warp_img = warp_pyramid[s][bs]
+        #         # pixel value range [-1,1]
+        #         mask = (warp_img < 0.0001) & (warp_img > - 0.0001)
+        #         err_img = error_pyramid[s][bs]
+        #         err_img[mask] = 0
+        #         mask_err_img = copy.deepcopy(err_img)
+        #         ignore_gray_error_pyramid.append(mask_err_img)
+
+        return ignore_gray_error_pyramid
     
     # ----------------------------------------------------------------------------------------------
     def build_flownet(self):
