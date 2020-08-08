@@ -271,6 +271,7 @@ def get_delta_xyz(opt, x, sc):
     #                             biases_regularizer=None,
     #                             scope=sc)
     
+    # return 10 * (delta_xyz-0.5)
     return DISP_SCALING_RESNET50 * (delta_xyz-0.5)
 
 def get_disp_resnet50(x):

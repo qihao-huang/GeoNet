@@ -259,10 +259,12 @@ def get_delta_xyz(opt, x, sc):
     # Attention: we don't use sigmoid activation since it maps to (0,1)
     # or relu (max(0,x), the delta could be < 0)
     # So, we don't use the above conv function (activation==tf.nn.relu)
-    delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=None, normalizer_fn=None, scope=sc)
+    # delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=None, normalizer_fn=None, scope=sc)
+    delta_xyz =  slim.conv2d(p_x, 12, 3, 1, 'VALID', activation_fn=tf.nn.sigmoid, normalizer_fn=None, scope=sc)
     
     # same operation like get_disp_resnet50
-    return DISP_SCALING_RESNET50 * delta_xyz + 0.01
+    # return DISP_SCALING_RESNET50 * delta_xyz + 0.01
+    return DISP_SCALING_RESNET50 * (delta_xyz - 0.5)
 
 def get_disp_resnet50(x):
     # x: input feature map

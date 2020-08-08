@@ -123,7 +123,6 @@ def to_mask_delta_xyz(mask_bool_coords, delta_xyz):
     mask_bool_coords: [4, 3, 128, 416]
     delta_xyz: [4, 3, 128, 316]
     """
-    # FIXME: is that correct?
     one = tf.ones_like(mask_bool_coords)
     zero = tf.zeros_like(mask_bool_coords)
 
@@ -246,8 +245,9 @@ def flow_warp(src_img, flow):
     # transpose -> [8,128,416,2]
     tgt_pixel_coords = tf.transpose(meshgrid(batch, height, width, False),
                                     [0, 2, 3, 1])
-
+                                    
     src_pixel_coords = tgt_pixel_coords + flow
+
     output_img = bilinear_sampler(src_img, src_pixel_coords)
 
     return output_img

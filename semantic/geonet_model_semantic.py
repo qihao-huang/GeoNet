@@ -57,12 +57,6 @@ class GeoNetModel(object):
             # [(8, 128, 416, 3), (8, 64, 208, 3), (8, 32, 104, 3), (8, 16, 52, 3)]
             self.src_image_concat_pyramid = self.scale_pyramid(self.src_image_concat, opt.num_scales)
 
-        # if self.src_sem_stack != None:
-        #     self.src_sem_concat = tf.concat([self.src_sem_stack[:,:,:,3*i:3*(i+1)] \
-        #                             for i in range(opt.num_source)], axis=0)
-            
-        #     self.src_sem_concat_pyramid = self.scale_pyramid(self.src_sem_concat, opt.num_scales)
-
         if opt.add_dispnet:
             self.build_dispnet()
 
@@ -125,9 +119,6 @@ class GeoNetModel(object):
             # bring improvement in depth estimation, but not included in our paper.
             self.pred_disp = [self.spatial_normalize(disp) for disp in self.pred_disp]
 
-        # inverse the predicted depth
-        # TODO: why? do I need same operatioon for delta_xyz?
-        # are there any unit misalignment error for depth and delya_xyz ?
         self.pred_depth = [1./d for d in self.pred_disp]
 
     def build_posenet(self):
@@ -150,7 +141,6 @@ class GeoNetModel(object):
 
         # self.delta_xyz:     [(4, 128, 416, 12), (4, 64, 208, 12) , (4, 32, 104, 12) , (4, 16, 52, 12) ]
 
-        # TODO: return mask_delta_xyz
         self.mask_delta_xyz = [[],[],[],[]]
 
         for s in range(opt.num_scales):

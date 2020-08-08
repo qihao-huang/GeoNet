@@ -33,7 +33,6 @@ flags.DEFINE_integer("num_threads",                 32, "Number of threads for d
 flags.DEFINE_integer("img_height",                 128, "Image height")
 flags.DEFINE_integer("img_width",                  416, "Image width")
 flags.DEFINE_integer("seq_length",                   3, "Sequence length for each example")
-flags.DEFINE_string("log_savedir",                  "", "log directory in save graph and loss")
 
 ##### Training Configurations #####
 flags.DEFINE_string("checkpoint_dir",               "", "Directory name to save the checkpoints")
@@ -86,7 +85,6 @@ def train():
     pp.pprint(flags.FLAGS.__flags)
 
     make_dir(opt.checkpoint_dir)
-    make_dir(opt.log_savedir)
 
     with tf.Graph().as_default():
         # Data Loader
@@ -120,7 +118,7 @@ def train():
             # we pretrain DepthNet & PoseNet, then finetune ResFlowNetS
             train_vars = tf.compat.v1.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "flow_net")
             vars_to_restore = slim.get_variables_to_restore(include=["depth_net", "pose_net"])
-        elif opt.delta_mode and not opt.save_intermediate:
+        elif opt.delta_mode:
             # train second stage model in delta mode 
             print("\x1b[6;30;42m" + "Second stage training for geo_xyz " + "\x1b[0m")
             if opt.fix_posenet:
@@ -130,10 +128,6 @@ def train():
                 train_vars = [var for var in tf.compat.v1.trainable_variables()]
             # To load first stage's model by partially restoring models
             vars_to_restore = slim.get_variables_to_restore(exclude=skip_para)
-        elif opt.save_intermediate:
-            print("\x1b[6;30;42m" + "save_intermediate" + "\x1b[0m")
-            train_vars = [var for var in tf.compat.v1.trainable_variables()]
-            vars_to_restore = slim.get_model_variables()
         else:
             print("\x1b[6;30;42m" + "First stage training for geo_xyz" + "\x1b[0m")
             train_vars = [var for var in tf.compat.v1.trainable_variables()]
@@ -205,50 +199,11 @@ def train():
                         "global_step": global_step,
                         "incr_global_step": incr_global_step,
                     }
-
-                if opt.save_intermediate:
-                    fetches["depth"] = model.pred_depth[0] # fetch depth
-                    fetches["pose"] = model.pred_poses # fetch pose
-                    fetches["tgt_image"] = model.tgt_image # fetch tgt_image
-                    fetches["src_image_stack"] = model.src_image_stack # fetch src_image_stack
-                    fetches["tgt_sem"] = model.tgt_sem
-                    fetches["src_sem_stack"] = model.src_sem_stack
-                    
-                    if opt.delta_mode:
-                        fetches["delta_xyz"] = model.mask_delta_xyz[0] # fetch delta
-
+                
                 if step % 100 == 0:
                     fetches["loss"] = loss
 
                 results = sess.run(fetches)
-                
-                if opt.save_intermedia:
-                    save_tmp_name = str(time.time()) # '1585880463.4654446'
-                    depth_save_dir = os.path.join(opt.log_savedir, "depth")
-                    pose_save_dir = os.path.join(opt.log_savedir, "pose")
-                    tgt_image_save_dir = os.path.join(opt.log_savedir, "tgt_image")
-                    src_image_stack_save_dir = os.path.join(opt.log_savedir, "src_image_stack")
-                    tgt_sem_save_dir = os.path.join(opt.log_savedir, "tgt_sem")
-                    src_sem_stack_save_dir = os.path.join(opt.log_savedir, "src_sem_stack")
-
-                    make_dir(depth_save_dir)
-                    make_dir(pose_save_dir)
-                    make_dir(tgt_image_save_dir)
-                    make_dir(src_image_stack_save_dir)
-                    make_dir(tgt_sem_save_dir)
-                    make_dir(src_sem_stack_save_dir)
-                 
-                    np.save(os.path.join(depth_save_dir, save_tmp_name), results["depth"])
-                    np.save(os.path.join(pose_save_dir, save_tmp_name), results["pose"])
-                    np.save(os.path.join(tgt_image_save_dir, save_tmp_name), results["tgt_image"])
-                    np.save(os.path.join(src_image_stack_save_dir, save_tmp_name), results["src_image_stack"])
-                    np.save(os.path.join(tgt_sem_save_dir, save_tmp_name), results["tgt_sem"])
-                    np.save(os.path.join(src_sem_stack_save_dir, save_tmp_name), results["src_sem_stack"])
-
-                    if opt.delta_mode:
-                        delta_save_dir = os.path.join(opt.log_savedir, "delta")
-                        make_dir(delta_save_dir)
-                        np.save(os.path.join(delta_save_dir, save_tmp_name), results["delta_xyz"])
                 
                 if step % 100 == 0:
                     time_per_iter = (time.time() - start_time) / 100

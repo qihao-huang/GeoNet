@@ -8,11 +8,6 @@ import numpy as np
 import argparse
 from depth_evaluation_utils import *
 
-# python kitti_eval/eval_depth.py \
-#     --split=eigen \
-#     --kitti_dir=$user_path"/dataset/kitti/raw_data/" \
-#     --pred_file=$user_path"/projects/Depth/GeoNet/predictions/test_depth/model-240000.npy"
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--split", type=str, default='eigen', help='eigen or stereo split')
 parser.add_argument("--kitti_dir", type=str, help='Path to the KITTI dataset directory')
@@ -20,11 +15,6 @@ parser.add_argument("--pred_file", type=str, help="Path to the prediction file")
 parser.add_argument('--min_depth', type=float, default=1e-3, help="Threshold for minimum depth")
 parser.add_argument('--max_depth', type=float, default=80, help="Threshold for maximum depth")
 args = parser.parse_args()
-
-def make_dir(dir_path):
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
 
 def convert_disps_to_depths_stereo(gt_disparities, pred_depths):
     gt_depths = []
@@ -47,10 +37,10 @@ def convert_disps_to_depths_stereo(gt_disparities, pred_depths):
 
         gt_depths.append(gt_depth)
         pred_depths_resized.append(pred_depth)
-    
     return gt_depths, pred_depths_resized, pred_disparities_resized
 
 def main():
+    # pred_file="/userhome/34/h3567721/projects/Depth/GeoNet-ori/predictions/ignore_gray_iterative_fix_pose_8/model-10000.npy"
     model_name = os.path.splitext(os.path.basename(args.pred_file))[0] # model-10000
     model_path = os.path.dirname(args.pred_file) # ../ignore_gray_iterative_fix_pose_8
 
@@ -72,7 +62,6 @@ def main():
                 cv2.resize(pred_depths[t_id], 
                            (im_sizes[t_id][1], im_sizes[t_id][0]), 
                            interpolation=cv2.INTER_LINEAR))
-            
             depth = generate_depth_map(gt_calib[t_id], 
                                        gt_files[t_id], 
                                        im_sizes[t_id], 
@@ -84,8 +73,7 @@ def main():
     else:
         num_test = 200
         gt_disparities = load_gt_disp_kitti(args.kitti_dir)
-        gt_depths, pred_depths, pred_disparities_resized = \
-            convert_disps_to_depths_stereo(gt_disparities, pred_depths)
+        gt_depths, pred_depths, pred_disparities_resized = convert_disps_to_depths_stereo(gt_disparities, pred_depths)
 
     rms     = np.zeros(num_test, np.float32)
     log_rms = np.zeros(num_test, np.float32)
@@ -95,14 +83,7 @@ def main():
     a1      = np.zeros(num_test, np.float32)
     a2      = np.zeros(num_test, np.float32)
     a3      = np.zeros(num_test, np.float32)
-
-    make_dir(os.path.join(model_path, model_name, "pred_depth"))
-    make_dir(os.path.join(model_path, model_name, "depth_mask"))
-    make_dir(os.path.join(model_path, model_name, "gt_depth"))
-    make_dir(os.path.join(model_path, model_name, "scaled_depth"))
-
     for i in range(num_test):    
-        print("processing: " + test_files[i])
         gt_depth = gt_depths[i]
         pred_depth = np.copy(pred_depths[i])
 
@@ -110,11 +91,9 @@ def main():
 
             mask = np.logical_and(gt_depth > args.min_depth, 
                                   gt_depth < args.max_depth)
-            
             # crop used by Garg ECCV16 to reprocude Eigen NIPS14 results
             # if used on gt_size 370x1224 produces a crop of [-218, -3, 44, 1180]
-            gt_height, gt_width = gt_depth.shape # 375, 1242
-
+            gt_height, gt_width = gt_depth.shape
             crop = np.array([0.40810811 * gt_height,  0.99189189 * gt_height,   
                              0.03594771 * gt_width,   0.96405229 * gt_width]).astype(np.int32)
 
@@ -133,28 +112,16 @@ def main():
 
         # Scale matching
         scalor = np.median(gt_depth[mask])/np.median(pred_depth[mask])
-        print("np.median(gt_depth[mask]): ", np.median(gt_depth[mask]))
-        print("np.median(pred_depth[mask]): ", np.median(pred_depth[mask]))
-        print("scalor: ", scalor)
-
-        tmp_name = test_files[i].split("/")
-        save_name = tmp_name[1] +"_02_" + tmp_name[-1].split(".")[0]
-
-        np.save(os.path.join(model_path, model_name, "pred_depth", save_name), pred_depth)
-        np.save(os.path.join(model_path, model_name, "depth_mask", save_name), mask)
-        np.save(os.path.join(model_path, model_name, "gt_depth", save_name), gt_depth)
-        np.save(os.path.join(model_path, model_name, "scaled_depth", save_name), pred_depth * scalor)
-
         pred_depth[mask] *= scalor
+
         pred_depth[pred_depth < args.min_depth] = args.min_depth
         pred_depth[pred_depth > args.max_depth] = args.max_depth
-
         abs_rel[i], sq_rel[i], rms[i], log_rms[i], a1[i], a2[i], a3[i] = \
             compute_errors(gt_depth[mask], pred_depth[mask])
 
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
     print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(abs_rel.mean(), sq_rel.mean(), rms.mean(), log_rms.mean(), d1_all.mean(), a1.mean(), a2.mean(), a3.mean()))    
-
+    
     f = open(os.path.join(model_path, model_name+".txt"), "a")
     f.write("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format('abs_rel', 'sq_rel', 'rms', 'log_rms', 'd1_all', 'a1', 'a2', 'a3'))
     f.write("\n")
@@ -163,21 +130,3 @@ def main():
     f.close()
 
 main()
-
-# def compute_errors(gt, pred):
-#     thresh = np.maximum((gt / pred), (pred / gt))
-#     a1 = (thresh < 1.25   ).mean()
-#     a2 = (thresh < 1.25 ** 2).mean()
-#     a3 = (thresh < 1.25 ** 3).mean()
-
-#     rmse = (gt - pred) ** 2
-#     rmse = np.sqrt(rmse.mean())
-
-#     rmse_log = (np.log(gt) - np.log(pred)) ** 2
-#     rmse_log = np.sqrt(rmse_log.mean())
-
-#     abs_rel = np.mean(np.abs(gt - pred) / gt)
-
-#     sq_rel = np.mean(((gt - pred)**2) / gt)
-
-#     return abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3
